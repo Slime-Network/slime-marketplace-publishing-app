@@ -12,7 +12,7 @@ import { sha256 } from 'js-sha256';
 import { Dispatch, SetStateAction, useEffect } from 'react';
 import { Buffer } from 'buffer';
 
-import type Media from '../spriggan-shared/types/Media';
+import type { Media } from '../spriggan-shared/types/Media';
 
 const Transition = React.forwardRef((props: SlideProps, ref) => {
 	return <Slide direction="up" ref={ref} {...props} />;
@@ -52,9 +52,7 @@ function TabProps(index: number) {
 }
 
 export type StorePageProps = {
-	game: Media;
-	setActiveOffer: Dispatch<SetStateAction<string>>;
-	onBuy: () => void;
+	media: Media;
 	open: boolean,
 	setOpen: Dispatch<SetStateAction<boolean>>
 };
@@ -66,25 +64,29 @@ export default function StorePage( props: StorePageProps ) {
 	const [tab, setTab] = React.useState(0);
 
 	useEffect(() => {
-		var pubdid = props.game.publisherdid;
-		var id = props.game.productid;
+		try {
+			var pubdid = props.media.publisherDid;
+			var id = props.media.productId;
 
-		var decoded = Buffer.from(bech32m.fromWords(bech32m.decode(pubdid).words)).toString("hex")
-		
-		var col = sha256.create().update(decoded + id).hex()
-		var collectionID = bech32m.encode("col", bech32m.toWords(Buffer.from(col, "hex")))
+			var decoded = Buffer.from(bech32m.fromWords(bech32m.decode(pubdid).words)).toString("hex")
+			
+			var col = sha256.create().update(decoded + id).hex()
+			var collectionID = bech32m.encode("col", bech32m.toWords(Buffer.from(col, "hex")))
 
-		axios.get(`https://api.dexie.space/v1/offers`, { params: { requested: asset, offered: collectionID, page_size: 1 } })
-			.then(res => {
-				console.log(res);
-				if (res.data.offers.length > 0) {
-					props.setActiveOffer(res.data.offers[0].offer)
-					setPrice(res.data.offers[0].requested[0].amount);
-				} else {
-					setPrice("Not Found");
+			axios.get(`https://api.dexie.space/v1/offers`, { params: { requested: asset, offered: collectionID, page_size: 1 } })
+				.then(res => {
+					console.log(res);
+					if (res.data.offers.length > 0) {
+						setPrice(res.data.offers[0].requested[0].amount);
+					} else {
+						setPrice("Not Found");
+					}
 				}
-			}
-		)
+			)
+		}
+		catch (except) {
+			console.log("PublisherDid not set, cannot search for offers.")
+		}
 	}, [asset]);
 
 	const assets = [
@@ -117,7 +119,7 @@ export default function StorePage( props: StorePageProps ) {
 				<CloseIcon />
 				</IconButton>
 				<Typography sx={{ ml: 2, flex: 1 }} variant="h6">
-					{props.game.title}
+					{props.media.title}
 				</Typography>
 			</Toolbar>
 			</AppBar>
@@ -140,7 +142,7 @@ export default function StorePage( props: StorePageProps ) {
 							<Card sx={{ m: 0, p: 2, height: '100%' }} >
 								<CardMedia
 									component="iframe"
-									src={(props.game.trailersource === 'youtube') ?"https://www.youtube.com/embed/" + props.game.trailer + "?autoplay=1&origin=http://.com": ""}
+									src={(props.media.trailerSource === 'Youtube') ?"https://www.youtube.com/embed/" + props.media.trailer + "?autoplay=1&origin=http://.com": ""}
 									height={'360'}
 								/>
 							</Card>
@@ -152,17 +154,17 @@ export default function StorePage( props: StorePageProps ) {
 					<Grid id="infoSection" item xs={12} md={4}  sx={{ height: '100%'}}>
 						<Stack sx={{ height: '100%'}}>
 							<Card sx={{ p: 1, m: 1, height: '60%' }}>
-								<Typography p={1} variant="h5">{props.game.title}</Typography>
+								<Typography p={1} variant="h5">{props.media.title}</Typography>
 								<Divider/>
-								<Typography p={2}>{props.game.description}</Typography>
+								<Typography p={2}>{props.media.description}</Typography>
 								<Divider/>
-								<Typography p={2}>{props.game.tags}</Typography>
+								<Typography p={2}>{props.media.tags}</Typography>
 							</Card>
 							<Card sx={{ m: 1, height: '40%' }}>
 								<Grid container>
 									<Grid  p={2} item sx={{ width: .5 }}>
 										<Typography p={2}>{price} {asset}</Typography>
-										<Button fullWidth={true} variant="contained"  onClick={props.onBuy}>Buy</Button>
+										<Button fullWidth={true} variant="contained">Buy</Button>
 									</Grid>
 									<Grid p={4} item sx={{ width: .5 }}>
 										<Autocomplete
@@ -186,7 +188,7 @@ export default function StorePage( props: StorePageProps ) {
 						</Stack>
 					</Grid>
 					<Card sx={{ m: 1, p: 4, width: '100%' }}>
-						<ReactMarkdown children={props.game.longdescription}/>
+						<ReactMarkdown children={props.media.longDescription}/>
 					</Card>
 				</Grid>
 			</Container>

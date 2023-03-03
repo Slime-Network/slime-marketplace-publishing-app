@@ -1,46 +1,20 @@
 import { useEffect, useState } from "react";
 import './App.css';
 
-import { Box, Button } from "@mui/material";
+import { Autocomplete, Box, Button, Fab, Grid, Modal, Paper, TextField, Typography } from "@mui/material";
 import MainTopBar from "./components/MainTopBar";
 import { Media } from "./spriggan-shared/types/Media";
+import AddIcon from '@mui/icons-material/Add';
 
 import { useWalletConnectClient } from "./chia-walletconnect/WalletConnectClientContext";
-import { useWalletConnectRpc, WalletConnectRpcParams } from "./chia-walletconnect/WalletConnectRpcContext";
-import GameGrid from "./components/GameGrid";
-import { useSearch } from "./contexts/SearchContext";
-import { SearchParams } from "./spriggan-shared/types/SearchTypes";
+import { useWalletConnectRpc } from "./chia-walletconnect/WalletConnectRpcContext";
+import { ProductList } from "./components/ProductList";
 
-function App() {
-	const [searchTerm, setSearchTerm] = useState<string>("");
-	const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout>(setTimeout(async () => {}, 100));
-	const [activeOffer, setActiveOffer] = useState<string>("");
+import { SprigganRPCParams, useSprigganRpc } from "./spriggan-shared/contexts/SprigganRpcContext";
+import { v4 as uuid } from 'uuid';
+import { errorModalStyle, successModalStyle } from "./spriggan-shared/constants";
 
-	const { search, mostRecent } = useSearch()
-	
-	const [searchResults, setSearchResults] = useState<Media[]>([]);
-	useEffect(() => {
-		if (searchTerm !== "") {
-			clearTimeout(searchDebounce)
-			setSearchDebounce(setTimeout(async () => {
-				setSearchResults(await search({titleTerm: searchTerm} as SearchParams))
-			}, 300));
-		}
-	}, [searchTerm]);
-
-	const [mostRecentResults, setMostRecentResults] = useState<Media[]>([]);
-	useEffect(() => {
-		async function fetchData() {
-			setMostRecentResults(await mostRecent({} as SearchParams));
-		}
-		fetchData();
-	}, [mostRecent]);
-
-
-	useEffect(() => {
-		document.title = `Spriggan Marketplace`;
-	}, [searchResults]);
-
+export const App = () => {
 
 	// Initialize the WalletConnect client.
 	const {
@@ -57,7 +31,6 @@ function App() {
 		ping,
 		walletconnectRpc,
 	} = useWalletConnectRpc();
-
 
 	useEffect(() => {
 		async function testConnection() {
@@ -99,29 +72,140 @@ function App() {
 		}
 	};
 
-
-	const executeOffer = async () => {
-		if (session && activeOffer) {
-			var x = session.namespaces.chia.accounts[0].split(":");
-			console.log(x[0] + ':' + x[1], x[2]);
-			await walletconnectRpc.takeOffer({ fingerprint: x[2], offer: activeOffer, fee: 1 } as WalletConnectRpcParams);
-		}
-	};
-
+	const {
+		sprigganRpc,
+		sprigganRpcResult,
+	} = useSprigganRpc();
 	
+	const [datastoreId, setDatastoreId] = useState<string>();
+	const [datastoreList, setDatastoreList] = useState<string[]>([]);
+	const [productList, setProductList] = useState<Media[]>([]);
+
+	const [openCommitStatusSuccess, setOpenCommitStatusSuccess] = useState(false);
+	const [openCommitStatusFailed, setOpenCommitStatusFailed] = useState(false);
+	const [commitTransactionId, setCommitTransactionId] = useState("");
+
+	useEffect(() => {
+		const getIds = async() => {
+			await sprigganRpc.getOwnedDatastores({} as SprigganRPCParams);
+		}
+		if (datastoreList && datastoreList.length === 0) {
+			console.log("datastore list ", datastoreList)
+			getIds()
+		}
+	}, [datastoreList]);
+	
+	useEffect(() => {
+		if (sprigganRpcResult) {
+			if (sprigganRpcResult.method === "getOwnedDatastores") {
+				console.log("getOwnedDatastores", sprigganRpcResult);
+				setDatastoreList(sprigganRpcResult.result);
+			} else if (sprigganRpcResult.method === "getPublishedMedia") {
+				console.log(sprigganRpcResult.result);
+				
+				setProductList(sprigganRpcResult.result)
+			} else if (sprigganRpcResult.method === "createDatastore") {
+				console.log("getOwnedDatastores", sprigganRpcResult);
+				setDatastoreList(datastoreList.concat([sprigganRpcResult.result.id]));
+				setDatastoreId(sprigganRpcResult.result.id);
+			} else if (sprigganRpcResult.method === "publishMedia") {
+				console.log("publishMedia", sprigganRpcResult);
+				if (sprigganRpcResult.result && sprigganRpcResult.result.success) {
+					setOpenCommitStatusSuccess(true);
+					setCommitTransactionId(sprigganRpcResult.result.tx_id);
+				}
+				else {
+					setOpenCommitStatusFailed(true);
+				}
+			} else if (sprigganRpcResult.method === "mintNftCopies") {
+				console.log("mintCopies", sprigganRpcResult);
+			} else if (sprigganRpcResult.method === "generateTorrents") {
+				console.log("generateTorrents", sprigganRpcResult);
+			}
+		}
+	}, [sprigganRpcResult]);
+
+	useEffect(() => {
+		const getProducts = async(id: string) => {
+			console.log("datastore id", id)
+			await sprigganRpc.getPublishedMedia({datastoreId: id} as SprigganRPCParams);
+		}
+		if (datastoreId !== undefined) {
+			getProducts(datastoreId)
+		}
+	}, [datastoreId]);
+
+
+	const updateDatastore = async (datastoreId: string, media: Media) => {
+		await sprigganRpc.publishMedia({datastoreId: datastoreId, media: media} as SprigganRPCParams);
+	}
+
 	return (
-			<Box>
-				<Button onClick={async () => {
-					if (session) {
-						var x = session.namespaces.chia.accounts[0].split(":");
-						await walletconnectRpc.getNFTs({ fingerprint: x[2] } as WalletConnectRpcParams);
-					}
-				}}>Execute test</Button>
-				{MainTopBar(session, onConnect, disconnect, (event) => {setSearchTerm(event.target.value)})}
-				{GameGrid("Search Results", searchResults, executeOffer, setActiveOffer)}
-				{GameGrid("Recently Updated", mostRecentResults, executeOffer, setActiveOffer)}
-			</Box>
+		<Box>
+			{MainTopBar(session, onConnect, disconnect)}
+			<Paper elevation={1} sx={{ m:2 }}>
+				<Typography sx={{ p:2 }} variant="h4">Datastore</Typography>
+				<Grid container p={4} id="medialist">
+					<Grid key={"datastore select"} item xs={9}>
+						<Autocomplete
+							id="asset-combo-box"
+							options={datastoreList}
+							sx={{ width: '100%' }}
+							renderInput={(params) => <TextField {...params} label="Datastore ID" />}
+							onChange={(_, newValue) => {
+								console.log(newValue)
+								if (newValue) {
+									setDatastoreId(newValue);
+								}
+							}}
+						/>
+					</Grid>
+					<Grid key={"datastore create"} item xs={3}>
+						<Button variant="contained" sx={{ p:2 }} onClick={async () =>{
+							await sprigganRpc.createDatastore({} as SprigganRPCParams);
+						}}>
+							Create New Datastore
+						</Button>
+					</Grid>
+				</Grid>
+
+				{ProductList("Your Products", productList, datastoreId as string, updateDatastore,)}
+				<Fab sx={{ margin: 0, top: 'auto', right: 20, bottom: 20, left: 'auto', position: 'fixed' }} aria-label="add" color="primary" disabled={datastoreId === undefined} onClick={async () => {
+					setProductList(productList.concat([{productId: uuid()} as Media]))
+				}}><AddIcon /></Fab>
+			</Paper>
+			<Modal
+				open={openCommitStatusSuccess}
+				onClose={() => {setOpenCommitStatusSuccess(false)}}
+				aria-labelledby="modal-modal-title"
+				aria-describedby="modal-modal-description"
+				>
+				<Box sx={successModalStyle}>
+					<Typography id="modal-modal-title" variant="h6" component="h2">
+						Commit Successful
+					</Typography>
+					<Typography id="modal-modal-description" sx={{mt:2}}>
+						Your update has been committed to your datastore! Check your wallet, it may take up to a few minutes for the transaction to be confirmed.
+						(Transaction Id: {commitTransactionId})
+					</Typography>
+				</Box>
+			</Modal>
+			<Modal
+				open={openCommitStatusFailed}
+				onClose={() => {setOpenCommitStatusFailed(false)}}
+				aria-labelledby="modal-modal-title"
+				aria-describedby="modal-modal-description"
+				>
+				<Box sx={errorModalStyle}>
+					<Typography id="modal-modal-title" variant="h6" component="h2">
+						Commit Failed
+					</Typography>
+					<Typography id="modal-modal-description" sx={{mt:2}}>
+						Your commit failed. Possible reasons are: <ul><li>There are no changes</li><li>There is already a pending update to your datastore</li><li>You do not have enough XCH in your wallet</li><li>There was an issue connecting to your wallet</li></ul> Please check your wallet and try again.
+					</Typography>
+				</Box>
+			</Modal>
+		</Box>
 	);
 }
 
-export default App;
