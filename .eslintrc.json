@@ -47,6 +47,7 @@
         "newlines-between": "always"
       }
     ],
+    "react/jsx-filename-extension": 0,
     "semi": 1,
     // Already taken care of by import/order. This must stay here, so require(); is before any import
     "import/first": "off",
@@ -119,12 +120,12 @@
       }
     ],
     // The airbnb default has ignoreCase: true
-    "react/jsx-no-duplicate-props": [
-      "error",
-      {
-        "ignoreCase": false
-      }
-    ],
+    // "react/jsx-no-duplicate-props": [
+    //   "error",
+    //   {
+    //     "ignoreCase": false
+    //   }
+    // ],
     // We often want named export even if there is only one at the beginning
     "import/prefer-default-export": "off",
     // So we do not forget to remove console.logs after debugging
@@ -159,12 +160,12 @@
       }
     ],
     // required for TS where string does not satisfy the expected return type of JSX.Element
-    "react/jsx-no-useless-fragment": [
-      "warn",
-      {
-        "allowExpressions": true
-      }
-    ],
+    // "react/jsx-no-useless-fragment": [
+    //   "warn",
+    //   {
+    //     "allowExpressions": true
+    //   }
+    // ],
     // Memoizing all prop callbacks would speed up the app but introduce a hard to debug bugs (wrong memo dependencies)
     "react/jsx-no-bind": "off",
     // This code should be allowed `export { default } from './Link';`
