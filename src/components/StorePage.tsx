@@ -1,5 +1,5 @@
-import * as React from 'react';
-import ReactMarkdown from 'react-markdown'
+import { Buffer } from 'buffer';
+
 import CloseIcon from '@mui/icons-material/Close';
 import {
 	Grid, Tab, Tabs, Dialog, Container, Typography, Button,
@@ -9,14 +9,14 @@ import {
 import axios from "axios";
 import { bech32m } from "bech32";
 import { sha256 } from 'js-sha256';
+import * as React from 'react';
 import { Dispatch, SetStateAction, useEffect } from 'react';
-import { Buffer } from 'buffer';
+import ReactMarkdown from 'react-markdown';
+
 
 import type { Media } from '../spriggan-shared/types/Media';
 
-const Transition = React.forwardRef((props: SlideProps, ref) => {
-	return <Slide direction="up" ref={ref} {...props} />;
-});
+const Transition = React.forwardRef((props: SlideProps, ref) => <Slide direction="up" ref={ref} {...props} />);
 
 export type TabPanelProps = {
 	children: any,
@@ -57,7 +57,8 @@ export type StorePageProps = {
 	setOpen: Dispatch<SetStateAction<boolean>>
 };
 
-export default function StorePage( props: StorePageProps ) {
+export default function StorePage(props: StorePageProps) {
+	const { media, open, setOpen } = props;
 
 	const [price, setPrice] = React.useState("");
 	const [asset, setAsset] = React.useState('XCH');
@@ -65,13 +66,13 @@ export default function StorePage( props: StorePageProps ) {
 
 	useEffect(() => {
 		try {
-			var pubdid = props.media.publisherDid;
-			var id = props.media.productId;
+			const pubdid = media.publisherDid;
+			const id = media.productId;
 
-			var decoded = Buffer.from(bech32m.fromWords(bech32m.decode(pubdid).words)).toString("hex")
-			
-			var col = sha256.create().update(decoded + id).hex()
-			var collectionID = bech32m.encode("col", bech32m.toWords(Buffer.from(col, "hex")))
+			const decoded = Buffer.from(bech32m.fromWords(bech32m.decode(pubdid).words)).toString("hex");
+
+			const col = sha256.create().update(decoded + id).hex();
+			const collectionID = bech32m.encode("col", bech32m.toWords(Buffer.from(col, "hex")));
 
 			axios.get(`https://api.dexie.space/v1/offers`, { params: { requested: asset, offered: collectionID, page_size: 1 } })
 				.then(res => {
@@ -81,47 +82,46 @@ export default function StorePage( props: StorePageProps ) {
 					} else {
 						setPrice("Not Found");
 					}
-				}
-			)
+				});
 		}
 		catch (except) {
-			console.log("PublisherDid not set, cannot search for offers.")
+			console.log("PublisherDid not set, cannot search for offers.");
 		}
-	}, [asset]);
+	}, [asset, media]);
 
 	const assets = [
 		'XCH', 'USDS', 'SBX'
 	];
 
 	const handleClose = () => {
-		props.setOpen(false);
+		setOpen(false);
 	};
 
 	const handleTabChange = (event: React.SyntheticEvent<Element, Event>, newValue: number) => {
 		setTab(newValue);
 	};
-	
+
 	return (
 		<Dialog
 			fullScreen
-			open={props.open}
+			open={open}
 			onClose={handleClose}
 			TransitionComponent={Transition}
 		>
 			<AppBar sx={{ position: 'relative' }}>
-			<Toolbar>
-				<IconButton
-					edge="start"
-					color="inherit"
-					onClick={handleClose}
-					aria-label="close"
-				>
-				<CloseIcon />
-				</IconButton>
-				<Typography sx={{ ml: 2, flex: 1 }} variant="h6">
-					{props.media.title}
-				</Typography>
-			</Toolbar>
+				<Toolbar>
+					<IconButton
+						edge="start"
+						color="inherit"
+						onClick={handleClose}
+						aria-label="close"
+					>
+						<CloseIcon />
+					</IconButton>
+					<Typography sx={{ ml: 2, flex: 1 }} variant="h6">
+						{media.title}
+					</Typography>
+				</Toolbar>
 			</AppBar>
 			<Container fixed>
 				<AppBar position="static">
@@ -137,12 +137,12 @@ export default function StorePage( props: StorePageProps ) {
 					</Tabs>
 				</AppBar>
 				<Grid container height={420} sx={{ width: '100%', m: 0 }}>
-					<Grid id="mediaSection" item xs={12} md={8} sx={{ m:0, p: 0, height: '100%' }}>
+					<Grid id="mediaSection" item xs={12} md={8} sx={{ m: 0, p: 0, height: '100%' }}>
 						<TabPanel value={tab} index={0}>
 							<Card sx={{ m: 0, p: 2, height: '100%' }} >
 								<CardMedia
 									component="iframe"
-									src={(props.media.trailerSource === 'Youtube') ?"https://www.youtube.com/embed/" + props.media.trailer + "?autoplay=1&origin=http://.com": ""}
+									src={(media.trailerSource === 'Youtube') ? `https://www.youtube.com/embed/${media.trailer}?autoplay=1&origin=http://.com` : ""}
 									height={'360'}
 								/>
 							</Card>
@@ -151,18 +151,18 @@ export default function StorePage( props: StorePageProps ) {
 							{price}
 						</TabPanel>
 					</Grid>
-					<Grid id="infoSection" item xs={12} md={4}  sx={{ height: '100%'}}>
-						<Stack sx={{ height: '100%'}}>
+					<Grid id="infoSection" item xs={12} md={4} sx={{ height: '100%' }}>
+						<Stack sx={{ height: '100%' }}>
 							<Card sx={{ p: 1, m: 1, height: '60%' }}>
-								<Typography p={1} variant="h5">{props.media.title}</Typography>
-								<Divider/>
-								<Typography p={2}>{props.media.description}</Typography>
-								<Divider/>
-								<Typography p={2}>{props.media.tags}</Typography>
+								<Typography p={1} variant="h5">{media.title}</Typography>
+								<Divider />
+								<Typography p={2}>{media.description}</Typography>
+								<Divider />
+								<Typography p={2}>{media.tags}</Typography>
 							</Card>
 							<Card sx={{ m: 1, height: '40%' }}>
 								<Grid container>
-									<Grid  p={2} item sx={{ width: .5 }}>
+									<Grid p={2} item sx={{ width: .5 }}>
 										<Typography p={2}>{price} {asset}</Typography>
 										<Button fullWidth={true} variant="contained">Buy</Button>
 									</Grid>
@@ -188,7 +188,7 @@ export default function StorePage( props: StorePageProps ) {
 						</Stack>
 					</Grid>
 					<Card sx={{ m: 1, p: 4, width: '100%' }}>
-						<ReactMarkdown children={props.media.longDescription}/>
+						<ReactMarkdown children={media.longDescription} />
 					</Card>
 				</Grid>
 			</Container>

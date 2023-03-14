@@ -1,25 +1,25 @@
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Toolbar from '@mui/material/Toolbar';
-import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
-import Badge from '@mui/material/Badge';
-import MenuItem from '@mui/material/MenuItem';
-import Menu from '@mui/material/Menu';
-import MenuIcon from '@mui/icons-material/Menu';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
+import MenuIcon from '@mui/icons-material/Menu';
 import { Divider, ListItemIcon } from '@mui/material';
+import AppBar from '@mui/material/AppBar';
+import Badge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
 import { SessionTypes } from '@walletconnect/types';
 import { useState } from 'react';
 
 import ThemeSwitcher from "./ThemeSwitcher";
 
 export default function MainTopBar(
-			session: SessionTypes.Struct | undefined,
-			connectToWallet: () => void,
-			disconnectFromWallet: () => void,
-		) {
+	session: SessionTypes.Struct | undefined,
+	connectToWallet: () => void,
+	disconnectFromWallet: () => void,
+) {
 
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const [anchor2El, setAnchor2El] = useState<null | HTMLElement>(null);
@@ -66,9 +66,9 @@ export default function MainTopBar(
 			}}
 			open={isWalletMenuOpen}
 			onClose={handleClose}
-			>
+		>
 			<MenuItem disabled={true}>Wallet</MenuItem>
-			<Divider/>
+			<Divider />
 			{session
 				? <div>
 					<MenuItem
@@ -111,8 +111,8 @@ export default function MainTopBar(
 			}}
 			open={isMainMenuOpen}
 			onClose={handleClose2}
-			>
-			<ThemeSwitcher/>
+		>
+			<ThemeSwitcher />
 		</Menu>
 	);
 
@@ -150,13 +150,13 @@ export default function MainTopBar(
 							onClick={handleClick}
 						>
 							{session
-								?<Badge variant="dot" overlap="circular" color="success" anchorOrigin={{
+								? <Badge variant="dot" overlap="circular" color="success" anchorOrigin={{
 									vertical: 'bottom',
 									horizontal: 'left',
 								}}>
 									<AccountBalanceWalletIcon />
 								</Badge>
-								:<Badge variant="dot" overlap="circular" color="warning" anchorOrigin={{
+								: <Badge variant="dot" overlap="circular" color="warning" anchorOrigin={{
 									vertical: 'bottom',
 									horizontal: 'left',
 								}}>
