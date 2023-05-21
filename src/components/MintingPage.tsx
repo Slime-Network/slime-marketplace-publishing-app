@@ -17,12 +17,12 @@ const Transition = React.forwardRef((props: SlideProps, ref) => <Slide direction
 export type MintingPageProps = {
 	media: Media;
 	open: boolean,
-	datastoreId: string,
+	dataStoreId: string,
 	setOpen: Dispatch<SetStateAction<boolean>>
 };
 
 export default function MintingPage(props: MintingPageProps) {
-	const { media, open, datastoreId, setOpen } = props;
+	const { media, open, dataStoreId, setOpen } = props;
 
 	const [displayImageUris, setDisplayImageUris] = React.useState<string[]>([]);
 	const [metadataUris, setMetadataUris] = React.useState<string[]>([]);
@@ -59,9 +59,6 @@ export default function MintingPage(props: MintingPageProps) {
 	const [openFeeInfo, setOpenFeeInfo] = React.useState(false);
 	const [openMintInfo, setOpenMintInfo] = React.useState(false);
 
-
-
-
 	const {
 		sprigganRpc,
 		sprigganRpcResult,
@@ -71,8 +68,6 @@ export default function MintingPage(props: MintingPageProps) {
 		if (sprigganRpcResult) {
 			if (sprigganRpcResult.method === "mintNftCopies") {
 				console.log("mintCopies", sprigganRpcResult);
-			} else if (sprigganRpcResult.method === "generateTorrents") {
-				console.log("generateTorrents", sprigganRpcResult);
 			}
 		}
 	}, [sprigganRpcResult]);
@@ -116,8 +111,8 @@ export default function MintingPage(props: MintingPageProps) {
 						"value": media.creator ? media.creator : ""
 					},
 					{
-						"type": "datastore id",
-						"value": datastoreId
+						"type": "dataStore id",
+						"value": dataStoreId
 					},
 					{
 						"type": "website",
@@ -142,7 +137,7 @@ export default function MintingPage(props: MintingPageProps) {
 			"minting_tool": "Spriggan-1.0"
 		}, null, 4));
 
-	}, [iconUri, bannerUri, edition, sensitiveContent, datastoreId, media]);
+	}, [iconUri, bannerUri, edition, sensitiveContent, dataStoreId, media]);
 
 
 	const handleClose = () => {

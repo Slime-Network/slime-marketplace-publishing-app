@@ -1,12 +1,12 @@
 import { Grid, Typography, Paper } from "@mui/material";
 
-import PublishingCard from "./PublishingCard";
 import { Media } from "../spriggan-shared/types/Media";
+import PublishingCard from "./PublishingCard";
 
 export const ProductList = (
 	title: string,
 	products: Media[],
-	datastoreId: string,
+	dataStoreId: string,
 	onExecuteUpdate: (media: Media) => Promise<void>,
 ) => {
 
@@ -22,7 +22,7 @@ export const ProductList = (
 							<PublishingCard
 								media={result}
 								onExecuteUpdate={onExecuteUpdate}
-								datastoreId={datastoreId}
+								dataStoreId={dataStoreId}
 							/>
 						</Grid>
 					))}

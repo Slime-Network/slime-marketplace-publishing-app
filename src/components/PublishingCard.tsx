@@ -4,23 +4,24 @@ import {
 	Grid, TextField, Autocomplete, Link, Switch, FormControlLabel,
 	Button, Box, Modal, IconButton
 } from '@mui/material';
-import axios from 'axios';
 import * as React from 'react';
 
-import MintingPage from './MintingPage';
-import StorePage, { StorePageProps } from './StorePage';
 import {
 	AdultContentTags, ContentTags, DefaultExecutables,
 	DevelopmentStatuses, infoModalStyle, KnownMarketplaces,
 	MediaTypes, RatingOptions, VideoSources
 } from '../spriggan-shared/constants';
+import { useMarketplaceApi } from '../spriggan-shared/contexts/MarketplaceApiContext';
 import { SprigganRPCParams, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
 import type { Media } from '../spriggan-shared/types/Media';
+import { RequestListingOrUpdateParams } from '../spriggan-shared/types/SearchTypes';
+import MintingPage from './MintingPage';
+import StorePage, { StorePageProps } from './StorePage';
 
 
 export type PublishingCardProps = {
 	media: Media;
-	datastoreId: string;
+	dataStoreId: string;
 	onExecuteUpdate: (media: Media) => Promise<void>;
 };
 
@@ -76,6 +77,8 @@ export default function PublishingCard(props: PublishingCardProps) {
 		sprigganRpcResult,
 	} = useSprigganRpc();
 
+	const { listing } = useMarketplaceApi();
+
 	const onFilesUpdate = () => {
 		const randPassword = new Array(10).fill("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").map(x => (function (chars) { const umax = 2 ** 32; const r = new Uint32Array(1); const max = umax - (umax % chars.length); do { crypto.getRandomValues(r); } while (r[0] > max); return chars[r[0] % chars.length]; })(x)).join('');
 		setPassword(randPassword);
@@ -91,16 +94,16 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const onRequestListingOrUpdate = async () => {
 		console.log("Requesting Listing/Update", marketplaces);
 		marketplaces.map(async (marketplace: string) => {
-			const result = await axios.get(`${marketplace}/listings/requestListingOrUpdate`);
-			console.log(result);
-
+			const result = await listing.requestListingOrUpdate({ url: marketplace, media } as RequestListingOrUpdateParams);
+			console.log("listing result", result);
 		});
 	};
 
 	React.useEffect(() => {
 		if (sprigganRpcResult && sprigganRpcResult.method === "generateTorrents") {
-			setTorrents(sprigganRpcResult.result.result);
-			media.torrents = sprigganRpcResult.result.result;
+			console.log("generateTorrents", sprigganRpcResult.result);
+			setTorrents(sprigganRpcResult.result);
+			media.torrents = sprigganRpcResult.result;
 		}
 	}, [sprigganRpcResult, media]);
 
@@ -137,8 +140,6 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const [openMintInfo, setOpenMintInfo] = React.useState(false);
 	const [openRequestListingOrUpdateInfo, setOpenRequestListingOrUpdateInfo] = React.useState(false);
 	const [openMintPage, setOpenMintPage] = React.useState(false);
-
-	// const [commitToDatastoreFee, setCommitToDatastoreFee] = React.useState<number>(500);
 
 	return (
 		<Paper elevation={3} sx={{ m: 2, p: 2 }}>
@@ -1047,7 +1048,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 								Commit Update
 							</Typography>
 							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Pressing this button will push this update to your datastore. Please review all fields above before committing, this will require an on chain transaction for every update.
+								Pressing this button will push this update to your dataStore. Please review all fields above before committing, this will require an on chain transaction for every update and will use the transaction fee at the top of the page.
 							</Typography>
 						</Box>
 					</Modal>
@@ -1144,6 +1145,13 @@ export default function PublishingCard(props: PublishingCardProps) {
 						</Box>
 					</Modal>
 				</Grid>
+				{/* <Grid key={"dataStore create"} item xs={4}>
+					<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
+						await listing.setMediaPublic({ productId: media.productId, isPublic: true } as SetMediaPublicParams);
+					}}>
+						Set Public
+					</Button>
+				</Grid> */}
 			</Grid>
 			{MintingPage({ open: openMintPage, setOpen: setOpenMintPage, ...props })}
 			{StorePage({ open: openStore, setOpen: setOpenStore, ...props } as StorePageProps)}

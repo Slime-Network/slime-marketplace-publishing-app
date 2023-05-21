@@ -7,7 +7,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { WalletConnectClientContextProvider } from "./chia-walletconnect/contexts/WalletConnectClientContext";
 import { WalletConnectRpcContextProvider } from "./chia-walletconnect/contexts/WalletConnectRpcContext";
-import { SearchContextProvider } from "./spriggan-shared/contexts/SearchContext";
+import { MarketplaceApiContextProvider } from "./spriggan-shared/contexts/MarketplaceApiContext";
 import { SprigganRpcContextProvider } from './spriggan-shared/contexts/SprigganRpcContext';
 
 const theme = extendTheme({
@@ -32,10 +32,10 @@ root.render(
 			<WalletConnectClientContextProvider>
 				<WalletConnectRpcContextProvider>
 					<SprigganRpcContextProvider>
-						<SearchContextProvider>
+						<MarketplaceApiContextProvider>
 							<CssBaseline />
 							<App />
-						</SearchContextProvider>
+						</MarketplaceApiContextProvider>
 					</SprigganRpcContextProvider>
 				</WalletConnectRpcContextProvider>
 			</WalletConnectClientContextProvider>
