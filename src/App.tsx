@@ -3,58 +3,27 @@ import { Autocomplete, Box, Button, Fab, Grid, Modal, Paper, TextField, Typograp
 import { useEffect, useState } from "react";
 import { v4 as uuid } from 'uuid';
 
-import { useWalletConnectClient } from "./chia-walletconnect/contexts/WalletConnectClientContext";
-import { useWalletConnectRpc, WalletConnectRpcParams } from "./chia-walletconnect/contexts/WalletConnectRpcContext";
 import MainTopBar from "./components/MainTopBar";
 import { ProductList } from "./components/ProductList";
 import { errorModalStyle, successModalStyle } from "./spriggan-shared/constants";
-import { SprigganRPCParams, useSprigganRpc } from "./spriggan-shared/contexts/SprigganRpcContext";
-import { Media } from "./spriggan-shared/types/Media";
+// import { useJsonRpc } from './spriggan-shared/contexts/JsonRpcContext';
+import { CreateDataStoreRequest, CreateDataStoreResponse, GetOwnedDataStoresRequest, GetOwnedDataStoresResponse, GetPublishedMediaRequest, GetPublishedMediaResponse, PublishMediaRequest, PublishMediaResponse, useSprigganRpc } from "./spriggan-shared/contexts/SprigganRpcContext";
+import { useWalletConnect } from './spriggan-shared/contexts/WalletConnectContext';
+import { Media } from "./spriggan-shared/types/spriggan/Media";
 
 export const App = () => {
 
-	// Initialize the WalletConnect client.
 	const {
 		client,
 		pairings,
 		session,
 		connect,
 		disconnect,
-		isInitializing,
-	} = useWalletConnectClient();
+	} = useWalletConnect();
 
-	// Use `JsonRpcContext` to provide us with relevant RPC methods and states.
-	const {
-		ping,
-		walletconnectRpc,
-		walletconnectRpcResult,
-	} = useWalletConnectRpc();
+	// const {
 
-	useEffect(() => {
-		async function testConnection() {
-			try {
-				const connected = await ping();
-				if (!connected) {
-					disconnect();
-				}
-				return connected;
-			} catch (e) {
-				console.log("ping fail", e);
-				disconnect();
-				return null;
-			}
-		}
-
-		if (!isInitializing) {
-			testConnection();
-		}
-
-		const interval = setInterval(() => {
-			console.log("Ping WalletConnect: ", testConnection());
-		}, 1000 * 60 * 1);
-
-		return () => clearInterval(interval);
-	}, [session, disconnect, isInitializing, ping]);
+	// } = useJsonRpc();
 
 	const onConnect = () => {
 		if (typeof client === "undefined") {
@@ -70,7 +39,10 @@ export const App = () => {
 	};
 
 	const {
-		sprigganRpc,
+		getOwnedDataStores,
+		getPublishedMedia,
+		publishMedia,
+		createDataStore,
 		sprigganRpcResult,
 	} = useSprigganRpc();
 
@@ -87,7 +59,7 @@ export const App = () => {
 
 	useEffect(() => {
 		const getIds = async () => {
-			await sprigganRpc.getOwnedDataStores({} as SprigganRPCParams);
+			await getOwnedDataStores({} as GetOwnedDataStoresRequest);
 		};
 		if (dataStoreList && dataStoreList.length === 0) {
 			console.log("dataStore list ", dataStoreList);
@@ -100,19 +72,23 @@ export const App = () => {
 		if (sprigganRpcResult) {
 			if (sprigganRpcResult.method === "getOwnedDataStores") {
 				console.log("getOwnedDataStores", sprigganRpcResult);
-				setDataStoreList(sprigganRpcResult.result);
+				const response = sprigganRpcResult.result as GetOwnedDataStoresResponse;
+				setDataStoreList(response.dataStoreIds);
 			} else if (sprigganRpcResult.method === "getPublishedMedia") {
 				console.log("getPublishedMedia", sprigganRpcResult.result);
-				setProductList(sprigganRpcResult.result);
+				const response = sprigganRpcResult.result as GetPublishedMediaResponse;
+				setProductList(response.media);
 			} else if (sprigganRpcResult.method === "createDataStore") {
 				console.log("createDataStore", sprigganRpcResult);
-				setDataStoreList(dataStoreList.concat([sprigganRpcResult.result.id]));
-				setDataStoreId(sprigganRpcResult.result.id);
+				const response = sprigganRpcResult.result as CreateDataStoreResponse;
+				setDataStoreList(dataStoreList.concat([response.dataStoreId]));
+				setDataStoreId(response.dataStoreId);
 			} else if (sprigganRpcResult.method === "publishMedia") {
 				console.log("publishMedia", sprigganRpcResult);
-				if (sprigganRpcResult.result && sprigganRpcResult.result.success) {
+				const response = sprigganRpcResult.result as PublishMediaResponse;
+				if (response && response.success) {
 					setOpenCommitStatusSuccess(true);
-					setCommitTransactionId(sprigganRpcResult.result.tx_id);
+					setCommitTransactionId(response.tx_id);
 				}
 				else {
 					setOpenCommitStatusFailed(true);
@@ -125,7 +101,7 @@ export const App = () => {
 	useEffect(() => {
 		const getProducts = async (id: string) => {
 			console.log("getting products", id);
-			await sprigganRpc.getPublishedMedia({ dataStoreId: id } as SprigganRPCParams);
+			await getPublishedMedia({ dataStoreId: id } as GetPublishedMediaRequest);
 		};
 		if (dataStoreId !== undefined) {
 			getProducts(dataStoreId);
@@ -133,16 +109,16 @@ export const App = () => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include sprigganRpc
 	}, [dataStoreId]);
 
-	useEffect(() => {
-		if (walletconnectRpcResult) {
-			if (walletconnectRpcResult.method === "createDataStore") {
-				console.log("createDataStore", walletconnectRpcResult);
-			}
-		}
-	}, [walletconnectRpcResult]);
+	// useEffect(() => {
+	// 	if (walletconnectRpcResult) {
+	// 		if (walletconnectRpcResult.method === "createDataStore") {
+	// 			console.log("createDataStore", walletconnectRpcResult);
+	// 		}
+	// 	}
+	// }, [walletconnectRpcResult]);
 
 	const updateDataStore = async (media: Media) => {
-		await sprigganRpc.publishMedia({ dataStoreId, media, fee: transactionFee } as SprigganRPCParams);
+		await publishMedia({ dataStoreId, media, fee: transactionFee } as PublishMediaRequest);
 	};
 
 	return (
@@ -167,8 +143,9 @@ export const App = () => {
 					</Grid>
 					<Grid key={"dataStore create"} item xs={4}>
 						<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
-							const fingerprint = session?.namespaces.chia.accounts[0].split(":")[2];
-							await walletconnectRpc.createDataStore({ fingerprint, fee: transactionFee } as WalletConnectRpcParams);
+							// const fingerprint = session?.namespaces.chia.accounts[0].split(":")[2];
+							// await walletconnectRpc.createDataStore({ fingerprint, fee: transactionFee } as WalletConnectRpcParams);
+							await createDataStore({ fee: transactionFee } as CreateDataStoreRequest);
 						}}>
 							Create New DataStore
 						</Button>

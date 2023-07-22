@@ -12,9 +12,9 @@ import {
 	MediaTypes, RatingOptions, VideoSources
 } from '../spriggan-shared/constants';
 import { useMarketplaceApi } from '../spriggan-shared/contexts/MarketplaceApiContext';
-import { SprigganRPCParams, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
-import type { Media } from '../spriggan-shared/types/Media';
-import { RequestListingOrUpdateParams } from '../spriggan-shared/types/SearchTypes';
+import { GenerateTorrentsRequest, GenerateTorrentsResponse, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
+import { RequestListingOrUpdateRequest } from '../spriggan-shared/types/spriggan/MarketplaceApiTypes';
+import type { Media } from '../spriggan-shared/types/spriggan/Media';
 import MintingPage from './MintingPage';
 import StorePage, { StorePageProps } from './StorePage';
 
@@ -73,11 +73,11 @@ export default function PublishingCard(props: PublishingCardProps) {
 	};
 
 	const {
-		sprigganRpc,
+		generateTorrents,
 		sprigganRpcResult,
 	} = useSprigganRpc();
 
-	const { listing } = useMarketplaceApi();
+	const { requestListingOrUpdate } = useMarketplaceApi();
 
 	const onFilesUpdate = () => {
 		const randPassword = new Array(10).fill("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").map(x => (function (chars) { const umax = 2 ** 32; const r = new Uint32Array(1); const max = umax - (umax % chars.length); do { crypto.getRandomValues(r); } while (r[0] > max); return chars[r[0] % chars.length]; })(x)).join('');
@@ -88,13 +88,13 @@ export default function PublishingCard(props: PublishingCardProps) {
 			mac: macFilePath,
 			linux: linuxFilePath,
 		};
-		sprigganRpc.generateTorrents({ sourcePaths, media } as SprigganRPCParams);
+		generateTorrents({ sourcePaths, media } as GenerateTorrentsRequest);
 	};
 
 	const onRequestListingOrUpdate = async () => {
 		console.log("Requesting Listing/Update", marketplaces);
 		marketplaces.map(async (marketplace: string) => {
-			const result = await listing.requestListingOrUpdate({ url: marketplace, media } as RequestListingOrUpdateParams);
+			const result = await requestListingOrUpdate({ url: marketplace, media } as RequestListingOrUpdateRequest);
 			console.log("listing result", result);
 		});
 	};
@@ -102,8 +102,9 @@ export default function PublishingCard(props: PublishingCardProps) {
 	React.useEffect(() => {
 		if (sprigganRpcResult && sprigganRpcResult.method === "generateTorrents") {
 			console.log("generateTorrents", sprigganRpcResult.result);
-			setTorrents(sprigganRpcResult.result);
-			media.torrents = sprigganRpcResult.result;
+			const response = sprigganRpcResult.result as GenerateTorrentsResponse;
+			setTorrents(response.torrents);
+			media.torrents = response.torrents;
 		}
 	}, [sprigganRpcResult, media]);
 
@@ -1002,7 +1003,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 				<Grid key={`${productId}executables`} item xs={11}>
 					<TextField id="executablesTextField" sx={{ width: '100%' }} multiline maxRows={6} label="Executables" variant="filled" value={executables} defaultValue={DefaultExecutables} onChange={(event: any) => {
 						setExecutables(event.target.value);
-						media.executables = event.target.value;
+						media.executables = JSON.parse(event.target.value);
 					}} />
 				</Grid>
 				<Grid key={`${productId}executables desc`} item xs={1}>
@@ -1147,7 +1148,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 				</Grid>
 				{/* <Grid key={"dataStore create"} item xs={4}>
 					<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
-						await listing.setMediaPublic({ productId: media.productId, isPublic: true } as SetMediaPublicParams);
+						await setMediaPublic({ productId: media.productId, isPublic: true } as SetMediaPublicParams);
 					}}>
 						Set Public
 					</Button>

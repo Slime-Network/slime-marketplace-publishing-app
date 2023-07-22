@@ -1,6 +1,6 @@
 import { Grid, Typography, Paper } from "@mui/material";
 
-import { Media } from "../spriggan-shared/types/Media";
+import { Media } from "../spriggan-shared/types/spriggan/Media";
 import PublishingCard from "./PublishingCard";
 
 export const ProductList = (

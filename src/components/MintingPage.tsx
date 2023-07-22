@@ -2,17 +2,15 @@ import CloseIcon from '@mui/icons-material/Close';
 import InfoIcon from '@mui/icons-material/Info';
 import {
 	Grid, Dialog, Typography, Button,
-	AppBar, Toolbar, Slide, IconButton,
-	Autocomplete, TextField, SlideProps, Paper, Modal, Box, FormControlLabel, Switch, Link
+	AppBar, Toolbar, IconButton,
+	Autocomplete, TextField, Paper, Modal, Box, FormControlLabel, Switch, Link
 } from '@mui/material';
 import * as React from 'react';
 import { Dispatch, SetStateAction } from 'react';
 
 import { infoModalStyle } from '../spriggan-shared/constants';
-import { SprigganRPCParams, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
-import type { Media } from '../spriggan-shared/types/Media';
-
-const Transition = React.forwardRef((props: SlideProps, ref) => <Slide direction="up" ref={ref} {...props} />);
+import { MintNftCopiesRequest, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
+import type { Media } from '../spriggan-shared/types/spriggan/Media';
 
 export type MintingPageProps = {
 	media: Media;
@@ -60,7 +58,7 @@ export default function MintingPage(props: MintingPageProps) {
 	const [openMintInfo, setOpenMintInfo] = React.useState(false);
 
 	const {
-		sprigganRpc,
+		mintNftCopies,
 		sprigganRpcResult,
 	} = useSprigganRpc();
 
@@ -149,7 +147,6 @@ export default function MintingPage(props: MintingPageProps) {
 			fullScreen
 			open={open}
 			onClose={handleClose}
-			TransitionComponent={Transition}
 		>
 			<AppBar sx={{ position: 'relative' }}>
 				<Toolbar>
@@ -209,7 +206,7 @@ export default function MintingPage(props: MintingPageProps) {
 							defaultValue={[]}
 							filterSelectedOptions
 							onChange={(event: any, values: string[]) => { setDisplayImageUris(values); }}
-							renderInput={(params) => (
+							renderInput={(params: any) => (
 								<TextField
 									{...params}
 									label="Display Image Uris"
@@ -446,7 +443,7 @@ export default function MintingPage(props: MintingPageProps) {
 							defaultValue={[]}
 							filterSelectedOptions
 							onChange={(event: any, values: string[]) => { setMetadataUris(values); }}
-							renderInput={(params) => (
+							renderInput={(params: any) => (
 								<TextField
 									{...params}
 									label="Metadata Uris"
@@ -485,7 +482,7 @@ export default function MintingPage(props: MintingPageProps) {
 							defaultValue={[]}
 							filterSelectedOptions
 							onChange={(event: any, values: string[]) => { setLicenseUris(values); }}
-							renderInput={(params) => (
+							renderInput={(params: any) => (
 								<TextField
 									{...params}
 									label="License Uris"
@@ -569,24 +566,21 @@ export default function MintingPage(props: MintingPageProps) {
 					<Grid key={`${media.productId}Mint`} item xs={11}>
 						<Button sx={{ width: '100%' }} variant="contained" onClick={async () => {
 							console.log("Starting Mint");
-							const mintingConfig = {
-								quantity,
-								batchSize,
-								imageUris: displayImageUris,
-								metadataUris,
-								licenseUris,
-								publisherDid: media.publisherDid,
-								royaltyAddress,
-								royaltyPercentage,
-								fee,
-								salePrice: price,
-							};
-							console.log(mintingConfig);
 
-
-							await sprigganRpc.mintNftCopies({
-								mintingConfig
-							} as SprigganRPCParams);
+							await mintNftCopies({
+								mintingConfig: {
+									quantity,
+									batchSize,
+									imageUris: displayImageUris,
+									metadataUris,
+									licenseUris,
+									publisherDid: media.publisherDid,
+									royaltyAddress,
+									royaltyPercentage,
+									fee,
+									salePrice: price,
+								}
+							} as MintNftCopiesRequest);
 						}}>
 							Start Minting
 						</Button>

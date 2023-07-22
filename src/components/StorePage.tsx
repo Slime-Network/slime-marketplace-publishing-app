@@ -14,7 +14,7 @@ import { Dispatch, SetStateAction, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 
-import type { Media } from '../spriggan-shared/types/Media';
+import type { Media } from '../spriggan-shared/types/spriggan/Media';
 
 const Transition = React.forwardRef((props: SlideProps, ref) => <Slide direction="up" ref={ref} {...props} />);
 
