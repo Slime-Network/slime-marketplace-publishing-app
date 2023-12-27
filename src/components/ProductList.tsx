@@ -1,12 +1,15 @@
 import { Grid, Typography, Paper } from "@mui/material";
 
-import { Media } from "../spriggan-shared/types/spriggan/Media";
+import { GostiConfig } from "../gosti-shared/types/gosti/GostiRpcTypes";
+import { Media } from "../gosti-shared/types/gosti/Media";
 import PublishingCard from "./PublishingCard";
 
 export const ProductList = (
 	title: string,
 	products: Media[],
 	dataStoreId: string,
+	config: GostiConfig,
+	setConfig: React.Dispatch<React.SetStateAction<GostiConfig>>,
 	onExecuteUpdate: (media: Media) => Promise<void>,
 ) => {
 
@@ -23,6 +26,8 @@ export const ProductList = (
 								media={result}
 								onExecuteUpdate={onExecuteUpdate}
 								dataStoreId={dataStoreId}
+								config={config}
+								setConfig={setConfig}
 							/>
 						</Grid>
 					))}

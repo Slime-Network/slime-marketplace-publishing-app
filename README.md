@@ -1,1 +1,1 @@
-# spriggan-marketplace-publishing-dapp
+# gosti-marketplace-publishing-dapp

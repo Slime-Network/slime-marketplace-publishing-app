@@ -8,9 +8,10 @@ import {
 import * as React from 'react';
 import { Dispatch, SetStateAction } from 'react';
 
-import { infoModalStyle } from '../spriggan-shared/constants';
-import { MintNftCopiesRequest, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
-import type { Media } from '../spriggan-shared/types/spriggan/Media';
+import { infoModalStyle } from '../gosti-shared/constants';
+import { useGostiRpc } from '../gosti-shared/contexts/GostiRpcContext';
+import { MintNftCopiesRequest } from '../gosti-shared/types/gosti/GostiRpcTypes';
+import type { Media } from '../gosti-shared/types/gosti/Media';
 
 export type MintingPageProps = {
 	media: Media;
@@ -59,16 +60,16 @@ export default function MintingPage(props: MintingPageProps) {
 
 	const {
 		mintNftCopies,
-		sprigganRpcResult,
-	} = useSprigganRpc();
+		gostiRpcResult,
+	} = useGostiRpc();
 
 	React.useEffect(() => {
-		if (sprigganRpcResult) {
-			if (sprigganRpcResult.method === "mintNftCopies") {
-				console.log("mintCopies", sprigganRpcResult);
+		if (gostiRpcResult) {
+			if (gostiRpcResult.method === "mintNftCopies") {
+				console.log("mintCopies", gostiRpcResult);
 			}
 		}
-	}, [sprigganRpcResult]);
+	}, [gostiRpcResult]);
 
 	React.useEffect(() => {
 		setMetadata(JSON.stringify({
@@ -82,7 +83,7 @@ export default function MintingPage(props: MintingPageProps) {
 				"attributes": [
 					{
 						"type": "media metadata format",
-						"value": "Spriggan-1.0"
+						"value": "Gosti-1.0"
 					},
 					{
 						"type": "icon",
@@ -132,7 +133,7 @@ export default function MintingPage(props: MintingPageProps) {
 					"value": edition
 				}
 			],
-			"minting_tool": "Spriggan-1.0"
+			"minting_tool": "Gosti-1.0"
 		}, null, 4));
 
 	}, [iconUri, bannerUri, edition, sensitiveContent, dataStoreId, media]);

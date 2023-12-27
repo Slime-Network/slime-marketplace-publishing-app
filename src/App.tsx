@@ -5,11 +5,12 @@ import { v4 as uuid } from 'uuid';
 
 import MainTopBar from "./components/MainTopBar";
 import { ProductList } from "./components/ProductList";
-import { errorModalStyle, successModalStyle } from "./spriggan-shared/constants";
-// import { useJsonRpc } from './spriggan-shared/contexts/JsonRpcContext';
-import { CreateDataStoreRequest, CreateDataStoreResponse, GetOwnedDataStoresRequest, GetOwnedDataStoresResponse, GetPublishedMediaRequest, GetPublishedMediaResponse, PublishMediaRequest, PublishMediaResponse, useSprigganRpc } from "./spriggan-shared/contexts/SprigganRpcContext";
-import { useWalletConnect } from './spriggan-shared/contexts/WalletConnectContext';
-import { Media } from "./spriggan-shared/types/spriggan/Media";
+import { errorModalStyle, successModalStyle } from "./gosti-shared/constants";
+// import { useJsonRpc } from './gosti-shared/contexts/JsonRpcContext';
+import { useGostiRpc } from "./gosti-shared/contexts/GostiRpcContext";
+import { useWalletConnect } from './gosti-shared/contexts/WalletConnectContext';
+import { CreateDataStoreRequest, CreateDataStoreResponse, GetOwnedDataStoresRequest, GetOwnedDataStoresResponse, GetPublishedMediaRequest, GetPublishedMediaResponse, PublishMediaRequest, PublishMediaResponse } from './gosti-shared/types/gosti/GostiRpcTypes';
+import { Media } from "./gosti-shared/types/gosti/Media";
 
 export const App = () => {
 
@@ -43,8 +44,11 @@ export const App = () => {
 		getPublishedMedia,
 		publishMedia,
 		createDataStore,
-		sprigganRpcResult,
-	} = useSprigganRpc();
+		getConfig,
+		saveConfig,
+		config,
+		gostiRpcResult,
+	} = useGostiRpc();
 
 	const [dataStoreId, setDataStoreId] = useState<string>();
 	const [dataStoreList, setDataStoreList] = useState<string[]>([]);
@@ -60,43 +64,48 @@ export const App = () => {
 	useEffect(() => {
 		const getIds = async () => {
 			await getOwnedDataStores({} as GetOwnedDataStoresRequest);
+			getConfig({} as GetOwnedDataStoresRequest);
 		};
 		if (dataStoreList && dataStoreList.length === 0) {
 			console.log("dataStore list ", dataStoreList);
 			getIds();
+		} else {
+			console.log("dataStore list ", dataStoreList);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include sprigganRpc
-	}, [dataStoreList]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include gostiRpc
+	}, [dataStoreList, setDataStoreList]);
 
 	useEffect(() => {
-		if (sprigganRpcResult) {
-			if (sprigganRpcResult.method === "getOwnedDataStores") {
-				console.log("getOwnedDataStores", sprigganRpcResult);
-				const response = sprigganRpcResult.result as GetOwnedDataStoresResponse;
+		if (gostiRpcResult) {
+			if (gostiRpcResult.method === "getOwnedDataStores") {
+				console.log("getOwnedDataStores", gostiRpcResult);
+				const response = gostiRpcResult.result as GetOwnedDataStoresResponse;
 				setDataStoreList(response.dataStoreIds);
-			} else if (sprigganRpcResult.method === "getPublishedMedia") {
-				console.log("getPublishedMedia", sprigganRpcResult.result);
-				const response = sprigganRpcResult.result as GetPublishedMediaResponse;
+			} else if (gostiRpcResult.method === "getPublishedMedia") {
+				console.log("getPublishedMedia", gostiRpcResult.result);
+				const response = gostiRpcResult.result as GetPublishedMediaResponse;
 				setProductList(response.media);
-			} else if (sprigganRpcResult.method === "createDataStore") {
-				console.log("createDataStore", sprigganRpcResult);
-				const response = sprigganRpcResult.result as CreateDataStoreResponse;
+			} else if (gostiRpcResult.method === "createDataStore") {
+				console.log("createDataStore", gostiRpcResult);
+				const response = gostiRpcResult.result as CreateDataStoreResponse;
 				setDataStoreList(dataStoreList.concat([response.dataStoreId]));
 				setDataStoreId(response.dataStoreId);
-			} else if (sprigganRpcResult.method === "publishMedia") {
-				console.log("publishMedia", sprigganRpcResult);
-				const response = sprigganRpcResult.result as PublishMediaResponse;
-				if (response && response.success) {
+			} else if (gostiRpcResult.method === "publishMedia") {
+				console.log("publishMedia", gostiRpcResult);
+				const response = gostiRpcResult.result as PublishMediaResponse;
+				if (response && response.message) {
 					setOpenCommitStatusSuccess(true);
-					setCommitTransactionId(response.tx_id);
+					setCommitTransactionId(response.message);
 				}
 				else {
 					setOpenCommitStatusFailed(true);
 				}
+			} else if (gostiRpcResult.method === "getConfig") {
+				console.log("getConfig", gostiRpcResult);
 			}
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- cab't include dataStore list
-	}, [sprigganRpcResult]);
+	}, [gostiRpcResult]);
 
 	useEffect(() => {
 		const getProducts = async (id: string) => {
@@ -106,7 +115,7 @@ export const App = () => {
 		if (dataStoreId !== undefined) {
 			getProducts(dataStoreId);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include sprigganRpc
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include gostiRpc
 	}, [dataStoreId]);
 
 	// useEffect(() => {
@@ -133,6 +142,7 @@ export const App = () => {
 							options={dataStoreList}
 							sx={{ width: '100%' }}
 							renderInput={(params) => <TextField {...params} label="DataStore ID" />}
+							filterOptions={(options, state) => options.filter((option) => option.toLowerCase().includes(state.inputValue.toLowerCase()))}
 							onChange={(event: any, value: string | null) => {
 								console.log(value);
 								if (value) {
@@ -161,7 +171,7 @@ export const App = () => {
 					</Grid>
 				</Grid>
 
-				{ProductList("Your Products", productList, dataStoreId as string, updateDataStore,)}
+				{ProductList("Your Products", productList, dataStoreId as string, config, saveConfig, updateDataStore,)}
 				<Fab sx={{ margin: 0, top: 'auto', right: 20, bottom: 20, left: 'auto', position: 'fixed' }} aria-label="add" color="primary" disabled={dataStoreId === undefined} onClick={async () => {
 					setProductList(productList.concat([{ productId: uuid() } as Media]));
 				}}><AddIcon /></Fab>

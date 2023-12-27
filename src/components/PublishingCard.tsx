@@ -1,27 +1,32 @@
+import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import {
 	CardActionArea, Typography, CardMedia, CardContent, Card, Paper,
 	Grid, TextField, Autocomplete, Link, Switch, FormControlLabel,
-	Button, Box, Modal, IconButton
+	Button, Box, Modal, IconButton, Chip, Divider, ToggleButtonGroup, ToggleButton
 } from '@mui/material';
 import * as React from 'react';
 
+import { AddMarketplaceModal } from '../gosti-shared/components/AddMarketplaceModal';
+import StorePage, { StorePageProps } from '../gosti-shared/components/StorePage';
 import {
 	AdultContentTags, ContentTags, DefaultExecutables,
-	DevelopmentStatuses, infoModalStyle, KnownMarketplaces,
+	DevelopmentStatuses, infoModalStyle,
 	MediaTypes, RatingOptions, VideoSources
-} from '../spriggan-shared/constants';
-import { useMarketplaceApi } from '../spriggan-shared/contexts/MarketplaceApiContext';
-import { GenerateTorrentsRequest, GenerateTorrentsResponse, useSprigganRpc } from '../spriggan-shared/contexts/SprigganRpcContext';
-import { RequestListingOrUpdateRequest } from '../spriggan-shared/types/spriggan/MarketplaceApiTypes';
-import type { Media } from '../spriggan-shared/types/spriggan/Media';
+} from '../gosti-shared/constants';
+import { useGostiRpc } from '../gosti-shared/contexts/GostiRpcContext';
+import { useMarketplaceApi } from '../gosti-shared/contexts/MarketplaceApiContext';
+import { GenerateTorrentsRequest, GenerateTorrentsResponse, GetConfigResponse, GostiConfig } from '../gosti-shared/types/gosti/GostiRpcTypes';
+import { RequestListingOrUpdateRequest, Marketplace } from '../gosti-shared/types/gosti/MarketplaceApiTypes';
+import type { Media } from '../gosti-shared/types/gosti/Media';
 import MintingPage from './MintingPage';
-import StorePage, { StorePageProps } from './StorePage';
 
 
 export type PublishingCardProps = {
 	media: Media;
 	dataStoreId: string;
+	config: GostiConfig;
+	setConfig: React.Dispatch<React.SetStateAction<GostiConfig>>;
 	onExecuteUpdate: (media: Media) => Promise<void>;
 };
 
@@ -61,12 +66,12 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const [twitter, setTwitter] = React.useState<string>(media.twitter);
 	const [version, setVersion] = React.useState<string>(media.version);
 	const [website, setWebsite] = React.useState<string>(media.website);
+	const [publicStatus, setPublicStatus] = React.useState<boolean>(true);
 
 	const [windowsFilePath, setWindowsFilePath] = React.useState<string>("");
 	const [macFilePath, setMacFilePath] = React.useState<string>("");
 	const [linuxFilePath, setLinuxFilePath] = React.useState<string>("");
 
-	const [marketplaces, setMarketplaces] = React.useState<string[]>([]);
 
 	const handleClickOpenStore = () => {
 		setOpenStore(true);
@@ -74,8 +79,20 @@ export default function PublishingCard(props: PublishingCardProps) {
 
 	const {
 		generateTorrents,
-		sprigganRpcResult,
-	} = useSprigganRpc();
+		saveConfig,
+		gostiRpcResult,
+	} = useGostiRpc();
+
+	const [config,] = React.useState<GostiConfig>(props.config);
+
+	const [marketplaces, setMarketplaces] = React.useState<Marketplace[]>([]);
+	const [selectedMarketplaces, setSelectedMarketplaces] = React.useState<Marketplace[]>([]);
+	const [addMarketplaceModalOpen, setAddMarketplaceModalOpen] = React.useState<boolean>(false);
+
+
+	React.useEffect(() => {
+		setMarketplaces(config.marketplaces || []);
+	}, [config]);
 
 	const { requestListingOrUpdate } = useMarketplaceApi();
 
@@ -92,21 +109,27 @@ export default function PublishingCard(props: PublishingCardProps) {
 	};
 
 	const onRequestListingOrUpdate = async () => {
-		console.log("Requesting Listing/Update", marketplaces);
-		marketplaces.map(async (marketplace: string) => {
-			const result = await requestListingOrUpdate({ url: marketplace, media } as RequestListingOrUpdateRequest);
+		console.log("Requesting Listing/Update", selectedMarketplaces);
+		selectedMarketplaces.map(async (marketplace: Marketplace) => {
+			const result = await requestListingOrUpdate({ url: marketplace.url, media, setPublic: publicStatus } as RequestListingOrUpdateRequest);
 			console.log("listing result", result);
 		});
 	};
 
 	React.useEffect(() => {
-		if (sprigganRpcResult && sprigganRpcResult.method === "generateTorrents") {
-			console.log("generateTorrents", sprigganRpcResult.result);
-			const response = sprigganRpcResult.result as GenerateTorrentsResponse;
+		if (gostiRpcResult && gostiRpcResult.method === "generateTorrents") {
+			console.log("generateTorrents", gostiRpcResult.result);
+			const response = gostiRpcResult.result as GenerateTorrentsResponse;
 			setTorrents(response.torrents);
 			media.torrents = response.torrents;
+		} else if (gostiRpcResult && gostiRpcResult.method === "getConfig") {
+			console.log("getConfig", gostiRpcResult.result);
+			const response = gostiRpcResult.result as GetConfigResponse;
+			setMarketplaces(response.config.marketplaces);
+		} else if (gostiRpcResult && gostiRpcResult.method === "saveConfig") {
+			console.log("saveConfig", gostiRpcResult.result);
 		}
-	}, [sprigganRpcResult, media]);
+	}, [gostiRpcResult, media]);
 
 	const [openPreviewInfo, setOpenPreviewInfo] = React.useState(false);
 	const [openProductIdInfo, setOpenProductIdInfo] = React.useState(false);
@@ -180,7 +203,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 								Preview
 							</Typography>
 							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								This is a preview of what your product will look like in the Spriggan Marketplace. Click it to see a preview of your store page.
+								This is a preview of what your product will look like in the Gosti Marketplace. Click it to see a preview of your store page.
 							</Typography>
 						</Box>
 					</Modal>
@@ -1079,27 +1102,50 @@ export default function PublishingCard(props: PublishingCardProps) {
 						</Box>
 					</Modal>
 				</Grid>
-
-				<Grid key={`${productId}marketplaces`} item xs={11}>
+				<Grid key={`${productId} Divider`} item xs={12}>
+					<Divider />
+				</Grid>
+				<Divider />
+				<Grid key={`${productId}marketplaces`} item xs={10}>
 					<Autocomplete
 						multiple
 						id={`${productId}marketplaces-outlined`}
-						options={KnownMarketplaces}
-						freeSolo
-						getOptionLabel={(option: any) => option}
-						defaultValue={[]}
-						filterSelectedOptions
-						onChange={(event: any, values: string[]) => {
-							setMarketplaces(values);
-						}}
+						options={marketplaces.map((marketplace) => marketplace.displayName)}
+						onChange={
+							(event: any, values: string[]) => {
+								const selected: Marketplace[] = [];
+								marketplaces.forEach((marketplace) => {
+									if (values.includes(marketplace.displayName))
+										selected.push(marketplace);
+								});
+
+								setSelectedMarketplaces(selected);
+							}
+						}
+						renderTags={(tagValue, getTagProps) =>
+							tagValue.map((option, index) => (
+								<Chip
+									label={option}
+									{...getTagProps({ index })}
+								/>
+							))
+						}
 						renderInput={(params) => (
 							<TextField
 								{...params}
-								label="Marketplaces"
-								placeholder="+"
+								label="Select Marketplaces"
+								placeholder="Marketplaces"
 							/>
 						)}
 					/>
+
+				</Grid>
+				<Grid key={`${productId}marketplaces add`} item xs={1}>
+					<IconButton size="large" aria-label="Add" onClick={() => {
+						setAddMarketplaceModalOpen(true);
+					}}>
+						<AddIcon />
+					</IconButton>
 				</Grid>
 				<Grid key={`${productId}marketplaces desc`} item xs={1}>
 					<IconButton size="small" aria-label="info" onClick={() => { setOpenStatusInfo(true); }}>
@@ -1107,7 +1153,10 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</IconButton>
 					<Modal
 						open={openStatusInfo}
-						onClose={() => { setOpenStatusInfo(false); }}
+						onClose={() => {
+							console.log();
+							setOpenStatusInfo(false);
+						}}
 						aria-labelledby="modal-modal-title"
 						aria-describedby="modal-modal-description"
 					>
@@ -1121,10 +1170,25 @@ export default function PublishingCard(props: PublishingCardProps) {
 						</Box>
 					</Modal>
 				</Grid>
-				<Grid key={`${productId}Request Listing / Update Marketplaces`} item xs={11}>
+				<Grid key={`${productId}Request Listing / Update Marketplaces`} item xs={8}>
 					<Button sx={{ width: '100%' }} variant="contained" onClick={onRequestListingOrUpdate}>
 						Request Listing / Update Marketplaces
 					</Button>
+				</Grid>
+				<Grid key={`${productId}Set Public`} item xs={3}>
+					<ToggleButtonGroup
+						color="primary"
+						value={publicStatus}
+						exclusive
+						onChange={(event: any, value: boolean) => {
+							if (value !== null)
+								setPublicStatus(value);
+						}}
+						aria-label="Platform"
+					>
+						<ToggleButton value={true}>Set Public</ToggleButton>
+						<ToggleButton value={false}>Set Private</ToggleButton>
+					</ToggleButtonGroup>
 				</Grid>
 				<Grid key={`${productId}Request Listing / Update Marketplaces desc`} item xs={1}>
 					<IconButton size="small" aria-label="info" onClick={() => { setOpenRequestListingOrUpdateInfo(true); }}>
@@ -1141,7 +1205,8 @@ export default function PublishingCard(props: PublishingCardProps) {
 								Request Listing / Update Marketplaces
 							</Typography>
 							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-
+								Requests listing on all marketplaces you have selected above. If you have already listed on a marketplace, this will push updates to that marketplace.
+								During the Beta, you can freely set your product to public or private. Once the beta is over, there will be a verification process before you can set your product as public.
 							</Typography>
 						</Box>
 					</Modal>
@@ -1155,8 +1220,9 @@ export default function PublishingCard(props: PublishingCardProps) {
 				</Grid> */}
 			</Grid>
 			{MintingPage({ open: openMintPage, setOpen: setOpenMintPage, ...props })}
-			{StorePage({ open: openStore, setOpen: setOpenStore, ...props } as StorePageProps)}
-		</Paper>
+			{StorePage({ media, open: openStore, setOpen: setOpenStore } as StorePageProps)}
+			{AddMarketplaceModal(addMarketplaceModalOpen, () => { setAddMarketplaceModalOpen(false); }, config, saveConfig)}
+		</Paper >
 	);
 };
 
