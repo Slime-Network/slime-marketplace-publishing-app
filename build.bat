@@ -1,1 +1,1 @@
-yarn build & robocopy /NDL /NFL /NP /NJS /NJH /E "./build" "../gosti-client/gosti-client-gui/public/dapps/gosti-marketplace-publishing-dapp/"
+yarn build & robocopy /NDL /NFL /NP /NJS /NJH /E "./build" "../GostiClient/resources/apps/gosti-marketplace-publishing-dapp/"

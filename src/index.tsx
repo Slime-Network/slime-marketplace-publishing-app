@@ -6,7 +6,6 @@ import ReactDOM from 'react-dom/client';
 
 import { App } from './App';
 import { CHAIN_ID, PROJECT_ID, RELAY_URL } from "./gosti-shared/constants/env";
-import { GostiRpcContextProvider } from './gosti-shared/contexts/GostiRpcContext';
 import { JsonRpcProvider } from "./gosti-shared/contexts/JsonRpcContext";
 import { MarketplaceApiContextProvider } from "./gosti-shared/contexts/MarketplaceApiContext";
 import { WalletConnectProvider } from "./gosti-shared/contexts/WalletConnectContext";
@@ -35,12 +34,10 @@ root.render(
 				relayUrl={RELAY_URL}
 				chainId={CHAIN_ID}>
 				<JsonRpcProvider>
-					<GostiRpcContextProvider>
-						<MarketplaceApiContextProvider>
-							<CssBaseline />
-							<App />
-						</MarketplaceApiContextProvider>
-					</GostiRpcContextProvider>
+					<MarketplaceApiContextProvider>
+						<CssBaseline />
+						<App />
+					</MarketplaceApiContextProvider>
 				</JsonRpcProvider>
 			</WalletConnectProvider>
 		</CssVarsProvider>

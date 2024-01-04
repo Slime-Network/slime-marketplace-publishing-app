@@ -1,5 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Autocomplete, Box, Button, Fab, Grid, Modal, Paper, TextField, Typography } from "@mui/material";
+import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
 import { v4 as uuid } from 'uuid';
 
@@ -7,9 +8,8 @@ import MainTopBar from "./components/MainTopBar";
 import { ProductList } from "./components/ProductList";
 import { errorModalStyle, successModalStyle } from "./gosti-shared/constants";
 // import { useJsonRpc } from './gosti-shared/contexts/JsonRpcContext';
-import { useGostiRpc } from "./gosti-shared/contexts/GostiRpcContext";
 import { useWalletConnect } from './gosti-shared/contexts/WalletConnectContext';
-import { CreateDataStoreRequest, CreateDataStoreResponse, GetOwnedDataStoresRequest, GetOwnedDataStoresResponse, GetPublishedMediaRequest, GetPublishedMediaResponse, PublishMediaRequest, PublishMediaResponse } from './gosti-shared/types/gosti/GostiRpcTypes';
+import { CreateDataStoreRequest, GetOwnedDataStoresRequest, GetPublishedMediaRequest, PublishMediaRequest } from './gosti-shared/types/gosti/GostiRpcTypes';
 import { Media } from "./gosti-shared/types/gosti/Media";
 
 export const App = () => {
@@ -39,17 +39,6 @@ export const App = () => {
 		}
 	};
 
-	const {
-		getOwnedDataStores,
-		getPublishedMedia,
-		publishMedia,
-		createDataStore,
-		getConfig,
-		saveConfig,
-		config,
-		gostiRpcResult,
-	} = useGostiRpc();
-
 	const [dataStoreId, setDataStoreId] = useState<string>();
 	const [dataStoreList, setDataStoreList] = useState<string[]>([]);
 	const [productList, setProductList] = useState<Media[]>([]);
@@ -63,8 +52,8 @@ export const App = () => {
 
 	useEffect(() => {
 		const getIds = async () => {
-			await getOwnedDataStores({} as GetOwnedDataStoresRequest);
-			getConfig({} as GetOwnedDataStoresRequest);
+			const response = await invoke<any>("make_chia_rpc_call", { command: "get_owned_stores", params: {} as GetOwnedDataStoresRequest });
+			setDataStoreList(response.store_ids);
 		};
 		if (dataStoreList && dataStoreList.length === 0) {
 			console.log("dataStore list ", dataStoreList);
@@ -72,69 +61,38 @@ export const App = () => {
 		} else {
 			console.log("dataStore list ", dataStoreList);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include gostiRpc
-	}, [dataStoreList, setDataStoreList]);
 
-	useEffect(() => {
-		if (gostiRpcResult) {
-			if (gostiRpcResult.method === "getOwnedDataStores") {
-				console.log("getOwnedDataStores", gostiRpcResult);
-				const response = gostiRpcResult.result as GetOwnedDataStoresResponse;
-				setDataStoreList(response.dataStoreIds);
-			} else if (gostiRpcResult.method === "getPublishedMedia") {
-				console.log("getPublishedMedia", gostiRpcResult.result);
-				const response = gostiRpcResult.result as GetPublishedMediaResponse;
-				setProductList(response.media);
-			} else if (gostiRpcResult.method === "createDataStore") {
-				console.log("createDataStore", gostiRpcResult);
-				const response = gostiRpcResult.result as CreateDataStoreResponse;
-				setDataStoreList(dataStoreList.concat([response.dataStoreId]));
-				setDataStoreId(response.dataStoreId);
-			} else if (gostiRpcResult.method === "publishMedia") {
-				console.log("publishMedia", gostiRpcResult);
-				const response = gostiRpcResult.result as PublishMediaResponse;
-				if (response && response.message) {
-					setOpenCommitStatusSuccess(true);
-					setCommitTransactionId(response.message);
-				}
-				else {
-					setOpenCommitStatusFailed(true);
-				}
-			} else if (gostiRpcResult.method === "getConfig") {
-				console.log("getConfig", gostiRpcResult);
-			}
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- cab't include dataStore list
-	}, [gostiRpcResult]);
+	}, [dataStoreList, setDataStoreList]);
 
 	useEffect(() => {
 		const getProducts = async (id: string) => {
 			console.log("getting products", id);
-			await getPublishedMedia({ dataStoreId: id } as GetPublishedMediaRequest);
+			const response = await invoke<any>("get_published_media", { params: { dataStoreId: id } as GetPublishedMediaRequest });
+			console.log("products", response);
+			setProductList(response.media);
 		};
 		if (dataStoreId !== undefined) {
 			getProducts(dataStoreId);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- can't include gostiRpc
+
 	}, [dataStoreId]);
 
-	// useEffect(() => {
-	// 	if (walletconnectRpcResult) {
-	// 		if (walletconnectRpcResult.method === "createDataStore") {
-	// 			console.log("createDataStore", walletconnectRpcResult);
-	// 		}
-	// 	}
-	// }, [walletconnectRpcResult]);
-
 	const updateDataStore = async (media: Media) => {
-		await publishMedia({ dataStoreId, media, fee: transactionFee } as PublishMediaRequest);
+		const response = await invoke<any>("publish_media", { params: { dataStoreId, media, fee: transactionFee } as PublishMediaRequest });
+		if (response && response.message) {
+			setOpenCommitStatusSuccess(true);
+			setCommitTransactionId(response.message);
+		}
+		else {
+			setOpenCommitStatusFailed(true);
+		}
 	};
 
 	return (
 		<Box>
 			{MainTopBar(session, onConnect, disconnect)}
 			<Paper elevation={1} sx={{ m: 2 }}>
-				<Typography sx={{ p: 2 }} variant="h4">DataStore</Typography>
+				<Typography sx={{ p: 2 }} variant="h4">Product Datastores</Typography>
 				<Grid container p={4} id="medialist">
 					<Grid key={"dataStore select"} item xs={8}>
 						<Autocomplete
@@ -153,14 +111,16 @@ export const App = () => {
 					</Grid>
 					<Grid key={"dataStore create"} item xs={4}>
 						<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
-							// const fingerprint = session?.namespaces.chia.accounts[0].split(":")[2];
-							// await walletconnectRpc.createDataStore({ fingerprint, fee: transactionFee } as WalletConnectRpcParams);
-							await createDataStore({ fee: transactionFee } as CreateDataStoreRequest);
+							const response = await invoke<any>("make_chia_rpc_call", { command: "create_data_store", params: { fee: transactionFee } as CreateDataStoreRequest });
+							console.log("Created Datastore", response);
+							setDataStoreList(dataStoreList.concat([response.id]));
+							setDataStoreId(response.dataStoreId);
+							setOpenCreatingDataStore(true);
 						}}>
 							Create New DataStore
 						</Button>
 					</Grid>
-					<Grid key={"Transaction Fee"} item xs={12}>
+					<Grid key={"Transaction Fee"} item xs={3}>
 						<TextField id="Transaction fee tf" variant="filled" type="number" label="Transaction Fee (mojo)" value={transactionFee} onChange={(e) => {
 							const regex = /^[0-9\b]+$/;
 							if (e.target.value === "" || regex.test(e.target.value)) {
@@ -169,9 +129,12 @@ export const App = () => {
 						}
 						} />
 					</Grid>
+					<Grid key={"Transaction Fee"} item xs={9}>
+						<Typography>Creating a Datastore and updating a product require an on-chain transaction. This optional fee can help speed up your transactions.</Typography>
+					</Grid>
 				</Grid>
 
-				{ProductList("Your Products", productList, dataStoreId as string, config, saveConfig, updateDataStore,)}
+				{ProductList("Your Products", productList, dataStoreId as string, updateDataStore,)}
 				<Fab sx={{ margin: 0, top: 'auto', right: 20, bottom: 20, left: 'auto', position: 'fixed' }} aria-label="add" color="primary" disabled={dataStoreId === undefined} onClick={async () => {
 					setProductList(productList.concat([{ productId: uuid() } as Media]));
 				}}><AddIcon /></Fab>
@@ -218,7 +181,7 @@ export const App = () => {
 						Creating DataStore
 					</Typography>
 					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-						Please check your wallet, wait for the transaction to go through, then refresh the page to find your dataStore in the dropdown
+						Please check your wallet to ensure the transaction is confirmed.
 					</Typography>
 				</Box>
 			</Modal>

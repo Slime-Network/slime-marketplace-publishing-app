@@ -5,11 +5,11 @@ import {
 	AppBar, Toolbar, IconButton,
 	Autocomplete, TextField, Paper, Modal, Box, FormControlLabel, Switch, Link
 } from '@mui/material';
+import { invoke } from "@tauri-apps/api/tauri";
 import * as React from 'react';
 import { Dispatch, SetStateAction } from 'react';
 
 import { infoModalStyle } from '../gosti-shared/constants';
-import { useGostiRpc } from '../gosti-shared/contexts/GostiRpcContext';
 import { MintNftCopiesRequest } from '../gosti-shared/types/gosti/GostiRpcTypes';
 import type { Media } from '../gosti-shared/types/gosti/Media';
 
@@ -58,18 +58,6 @@ export default function MintingPage(props: MintingPageProps) {
 	const [openFeeInfo, setOpenFeeInfo] = React.useState(false);
 	const [openMintInfo, setOpenMintInfo] = React.useState(false);
 
-	const {
-		mintNftCopies,
-		gostiRpcResult,
-	} = useGostiRpc();
-
-	React.useEffect(() => {
-		if (gostiRpcResult) {
-			if (gostiRpcResult.method === "mintNftCopies") {
-				console.log("mintCopies", gostiRpcResult);
-			}
-		}
-	}, [gostiRpcResult]);
 
 	React.useEffect(() => {
 		setMetadata(JSON.stringify({
@@ -568,7 +556,7 @@ export default function MintingPage(props: MintingPageProps) {
 						<Button sx={{ width: '100%' }} variant="contained" onClick={async () => {
 							console.log("Starting Mint");
 
-							await mintNftCopies({
+							await invoke("gosti_bulk_nft_mint", {
 								mintingConfig: {
 									quantity,
 									batchSize,

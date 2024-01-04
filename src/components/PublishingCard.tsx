@@ -5,6 +5,7 @@ import {
 	Grid, TextField, Autocomplete, Link, Switch, FormControlLabel,
 	Button, Box, Modal, IconButton, Chip, Divider, ToggleButtonGroup, ToggleButton
 } from '@mui/material';
+import { invoke } from "@tauri-apps/api/tauri";
 import * as React from 'react';
 
 import { AddMarketplaceModal } from '../gosti-shared/components/AddMarketplaceModal';
@@ -14,9 +15,8 @@ import {
 	DevelopmentStatuses, infoModalStyle,
 	MediaTypes, RatingOptions, VideoSources
 } from '../gosti-shared/constants';
-import { useGostiRpc } from '../gosti-shared/contexts/GostiRpcContext';
 import { useMarketplaceApi } from '../gosti-shared/contexts/MarketplaceApiContext';
-import { GenerateTorrentsRequest, GenerateTorrentsResponse, GetConfigResponse, GostiConfig } from '../gosti-shared/types/gosti/GostiRpcTypes';
+import { GenerateTorrentsRequest, GostiConfig } from '../gosti-shared/types/gosti/GostiRpcTypes';
 import { RequestListingOrUpdateRequest, Marketplace } from '../gosti-shared/types/gosti/MarketplaceApiTypes';
 import type { Media } from '../gosti-shared/types/gosti/Media';
 import MintingPage from './MintingPage';
@@ -25,8 +25,6 @@ import MintingPage from './MintingPage';
 export type PublishingCardProps = {
 	media: Media;
 	dataStoreId: string;
-	config: GostiConfig;
-	setConfig: React.Dispatch<React.SetStateAction<GostiConfig>>;
 	onExecuteUpdate: (media: Media) => Promise<void>;
 };
 
@@ -60,7 +58,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const [status, setStatus] = React.useState<string>(media.status);
 	const [tags, setTags] = React.useState<string[]>(media.tags);
 	const [title, setTitle] = React.useState<string>(media.title);
-	const [, setTorrents] = React.useState<string>(media.torrents);
+	const [,] = React.useState<string>(media.torrents);
 	const [trailer, setTrailer] = React.useState<string>(media.trailer);
 	const [trailerSource, setTrailerSource] = React.useState<string>(media.trailerSource);
 	const [twitter, setTwitter] = React.useState<string>(media.twitter);
@@ -77,13 +75,25 @@ export default function PublishingCard(props: PublishingCardProps) {
 		setOpenStore(true);
 	};
 
-	const {
-		generateTorrents,
-		saveConfig,
-		gostiRpcResult,
-	} = useGostiRpc();
+	const [config, setConfig] = React.useState<GostiConfig | undefined>(undefined);
 
-	const [config,] = React.useState<GostiConfig>(props.config);
+	React.useEffect(() => {
+		async function fetchData() {
+			const configResponse: any = await invoke("get_config");
+			console.log("get_config", configResponse);
+			setConfig(configResponse.result);
+		}
+		fetchData();
+	}, []);
+
+	React.useEffect(() => {
+		async function updateConfig() {
+			const configResponse: any = await invoke("save_config", { config });
+			console.log("save_config", configResponse);
+		}
+		if (config)
+			updateConfig();
+	}, [config]);
 
 	const [marketplaces, setMarketplaces] = React.useState<Marketplace[]>([]);
 	const [selectedMarketplaces, setSelectedMarketplaces] = React.useState<Marketplace[]>([]);
@@ -91,7 +101,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 
 
 	React.useEffect(() => {
-		setMarketplaces(config.marketplaces || []);
+		setMarketplaces(config?.marketplaces || []);
 	}, [config]);
 
 	const { requestListingOrUpdate } = useMarketplaceApi();
@@ -105,7 +115,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 			mac: macFilePath,
 			linux: linuxFilePath,
 		};
-		generateTorrents({ sourcePaths, media } as GenerateTorrentsRequest);
+		invoke("generateTorrents", { sourcePaths, media } as GenerateTorrentsRequest);
 	};
 
 	const onRequestListingOrUpdate = async () => {
@@ -115,21 +125,6 @@ export default function PublishingCard(props: PublishingCardProps) {
 			console.log("listing result", result);
 		});
 	};
-
-	React.useEffect(() => {
-		if (gostiRpcResult && gostiRpcResult.method === "generateTorrents") {
-			console.log("generateTorrents", gostiRpcResult.result);
-			const response = gostiRpcResult.result as GenerateTorrentsResponse;
-			setTorrents(response.torrents);
-			media.torrents = response.torrents;
-		} else if (gostiRpcResult && gostiRpcResult.method === "getConfig") {
-			console.log("getConfig", gostiRpcResult.result);
-			const response = gostiRpcResult.result as GetConfigResponse;
-			setMarketplaces(response.config.marketplaces);
-		} else if (gostiRpcResult && gostiRpcResult.method === "saveConfig") {
-			console.log("saveConfig", gostiRpcResult.result);
-		}
-	}, [gostiRpcResult, media]);
 
 	const [openPreviewInfo, setOpenPreviewInfo] = React.useState(false);
 	const [openProductIdInfo, setOpenProductIdInfo] = React.useState(false);
@@ -1221,7 +1216,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 			</Grid>
 			{MintingPage({ open: openMintPage, setOpen: setOpenMintPage, ...props })}
 			{StorePage({ media, open: openStore, setOpen: setOpenStore } as StorePageProps)}
-			{AddMarketplaceModal(addMarketplaceModalOpen, () => { setAddMarketplaceModalOpen(false); }, config, saveConfig)}
+			{AddMarketplaceModal(addMarketplaceModalOpen, () => { setAddMarketplaceModalOpen(false); }, config, setConfig)}
 		</Paper >
 	);
 };
