@@ -2,25 +2,28 @@ import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
 import {
 	CardActionArea, Typography, CardMedia, CardContent, Card, Paper,
-	Grid, TextField, Autocomplete, Link, Switch, FormControlLabel,
+	Grid, TextField, Autocomplete, Switch, FormControlLabel,
 	Button, Box, Modal, IconButton, Chip, Divider, ToggleButtonGroup, ToggleButton
 } from '@mui/material';
 import { invoke } from "@tauri-apps/api/tauri";
+import { SimplePool } from 'nostr-tools';
 import * as React from 'react';
 
 import { AddMarketplaceModal } from '../gosti-shared/components/AddMarketplaceModal';
+import ImageUpload from '../gosti-shared/components/ImageUpload';
 import StorePage, { StorePageProps } from '../gosti-shared/components/StorePage';
 import {
 	AdultContentTags, ContentTags, DefaultExecutables,
 	DevelopmentStatuses, infoModalStyle,
 	MediaTypes, RatingOptions, VideoSources
 } from '../gosti-shared/constants';
+import { useGostiApi } from '../gosti-shared/contexts/GostiApiContext';
 import { useMarketplaceApi } from '../gosti-shared/contexts/MarketplaceApiContext';
-import { GenerateTorrentsRequest, GostiConfig } from '../gosti-shared/types/gosti/GostiRpcTypes';
+import { GenerateTorrentsRequest } from '../gosti-shared/types/gosti/GostiRpcTypes';
 import { RequestListingOrUpdateRequest, Marketplace } from '../gosti-shared/types/gosti/MarketplaceApiTypes';
 import type { Media } from '../gosti-shared/types/gosti/Media';
+import { getEventHash, NostrEvent } from '../gosti-shared/utils/nostr';
 import MintingPage from './MintingPage';
-
 
 export type PublishingCardProps = {
 	media: Media;
@@ -41,17 +44,13 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const [capsuleImage, setCapsuleImage] = React.useState<string>(media.capsuleImage);
 	const [contentRating, setContentRating] = React.useState<string>(media.contentRating);
 	const [description, setDescription] = React.useState<string>(media.description);
-	const [creator, setCreator] = React.useState<string>(media.creator);
-	const [discord, setDiscord] = React.useState<string>(media.discord);
+	const [creators, setCreators] = React.useState<string[]>(media.creators);
 	const [executables, setExecutables] = React.useState<string>(JSON.stringify(media.executables, null, 2));
-	const [facebook, setFacebook] = React.useState<string>(media.facebook);
 	const [icon, setIcon] = React.useState<string>(media.icon);
-	const [instagram, setInstagram] = React.useState<string>(media.instagram);
 	const [longDescription, setLongDescription] = React.useState<string>(media.longDescription);
 	const [, setPassword] = React.useState<string>(media.password);
 	const [paymentAddress, setPaymentAddress] = React.useState<string>(media.paymentAddress);
 	const [productId,] = React.useState<string>(media.productId);
-	const [publisher, setPublisher] = React.useState<string>(media.publisher);
 	const [publisherDid, setPublisherDid] = React.useState<string>(media.publisherDid);
 	const [screenshots, setScreenshots] = React.useState<string[]>(media.screenshots);
 	const [shortDescription, setShortDescription] = React.useState<string>(media.shortDescription);
@@ -61,39 +60,18 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const [,] = React.useState<string>(media.torrents);
 	const [trailer, setTrailer] = React.useState<string>(media.trailer);
 	const [trailerSource, setTrailerSource] = React.useState<string>(media.trailerSource);
-	const [twitter, setTwitter] = React.useState<string>(media.twitter);
 	const [version, setVersion] = React.useState<string>(media.version);
-	const [website, setWebsite] = React.useState<string>(media.website);
 	const [publicStatus, setPublicStatus] = React.useState<boolean>(true);
 
 	const [windowsFilePath, setWindowsFilePath] = React.useState<string>("");
 	const [macFilePath, setMacFilePath] = React.useState<string>("");
 	const [linuxFilePath, setLinuxFilePath] = React.useState<string>("");
 
-
 	const handleClickOpenStore = () => {
 		setOpenStore(true);
 	};
 
-	const [config, setConfig] = React.useState<GostiConfig | undefined>(undefined);
-
-	React.useEffect(() => {
-		async function fetchData() {
-			const configResponse: any = await invoke("get_config");
-			console.log("get_config", configResponse);
-			setConfig(configResponse.result);
-		}
-		fetchData();
-	}, []);
-
-	React.useEffect(() => {
-		async function updateConfig() {
-			const configResponse: any = await invoke("save_config", { config });
-			console.log("save_config", configResponse);
-		}
-		if (config)
-			updateConfig();
-	}, [config]);
+	const { gostiConfig } = useGostiApi();
 
 	const [marketplaces, setMarketplaces] = React.useState<Marketplace[]>([]);
 	const [selectedMarketplaces, setSelectedMarketplaces] = React.useState<Marketplace[]>([]);
@@ -101,8 +79,8 @@ export default function PublishingCard(props: PublishingCardProps) {
 
 
 	React.useEffect(() => {
-		setMarketplaces(config?.marketplaces || []);
-	}, [config]);
+		setMarketplaces(gostiConfig.marketplaces || []);
+	}, [gostiConfig]);
 
 	const { requestListingOrUpdate } = useMarketplaceApi();
 
@@ -126,42 +104,29 @@ export default function PublishingCard(props: PublishingCardProps) {
 		});
 	};
 
-	const [openPreviewInfo, setOpenPreviewInfo] = React.useState(false);
-	const [openProductIdInfo, setOpenProductIdInfo] = React.useState(false);
-	const [openTitleInfo, setOpenTitleInfo] = React.useState(false);
-	const [openShortDescriptionInfo, setOpenShortDescriptionInfo] = React.useState(false);
-	const [openDescriptionInfo, setOpenDescriptionInfo] = React.useState(false);
-	const [openLongDescriptionInfo, setOpenLongDescriptionInfo] = React.useState(false);
-	const [openBannerInfo, setOpenBannerInfo] = React.useState(false);
-	const [openCapsuleImageInfo, setOpenCapsuleImageInfo] = React.useState(false);
-	const [openIconInfo, setOpenIconInfo] = React.useState(false);
-	const [openScreenshotsInfo, setOpenScreenshotsInfo] = React.useState(false);
-	const [openTrailerSourceInfo, setOpenTrailerSourceInfo] = React.useState(false);
-	const [openTrailerInfo, setOpenTrailerInfo] = React.useState(false);
-	const [openContentRatingInfo, setOpenContentRatingInfo] = React.useState(false);
-	const [openTagsInfo, setOpenTagsInfo] = React.useState(false);
-	const [openAdultInfo, setOpenAdultInfo] = React.useState(false);
-	const [openCreatorInfo, setOpenCreatorInfo] = React.useState(false);
-	const [openPublisherInfo, setOpenPublisherInfo] = React.useState(false);
-	const [openPublisherDidInfo, setOpenPublisherDidInfo] = React.useState(false);
-	const [openPaymentAddressInfo, setOpenPaymentAddressInfo] = React.useState(false);
-	const [openTwitterInfo, setOpenTwitterInfo] = React.useState(false);
-	const [openWebsiteInfo, setOpenWebsiteInfo] = React.useState(false);
-	const [openDiscordInfo, setOpenDiscordInfo] = React.useState(false);
-	const [openInstagramInfo, setOpenInstagramInfo] = React.useState(false);
-	const [openFacebookInfo, setOpenFacebookInfo] = React.useState(false);
-	const [openVersionInfo, setOpenVersionInfo] = React.useState(false);
-	const [openStatusInfo, setOpenStatusInfo] = React.useState(false);
-	const [openFilesInfo, setOpenFilesInfo] = React.useState(false);
-	const [openTorrentsInfo, setOpenTorrentsInfo] = React.useState(false);
-	const [openExecutablesInfo, setOpenExecutablesInfo] = React.useState(false);
-	const [openUpdateInfo, setOpenUpdateInfo] = React.useState(false);
-	const [openMintInfo, setOpenMintInfo] = React.useState(false);
-	const [openRequestListingOrUpdateInfo, setOpenRequestListingOrUpdateInfo] = React.useState(false);
+	const [openInfoModal, setOpenInfoModal] = React.useState(false);
+	const [infoTitle, setInfoTitle] = React.useState("");
+	const [infoDescription, setInfoDescription] = React.useState("");
+
 	const [openMintPage, setOpenMintPage] = React.useState(false);
 
 	return (
 		<Paper elevation={3} sx={{ m: 2, p: 2 }}>
+			<Modal
+				open={openInfoModal}
+				onClose={() => { setOpenInfoModal(false); }}
+				aria-labelledby="modal-modal-title"
+				aria-describedby="modal-modal-description"
+			>
+				<Box sx={infoModalStyle}>
+					<Typography id="modal-modal-title" variant="h6" component="h2">
+						{infoTitle}
+					</Typography>
+					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
+						{infoDescription}
+					</Typography>
+				</Box>
+			</Modal>
 			<Grid container p={4} spacing={4} id="productlist">
 				<Grid key={`${productId}preview`} item xs={6} sm={4} md={3} lg={2}>
 					<Card sx={{ maxWidth: 345 }} onClick={handleClickOpenStore}>
@@ -184,50 +149,26 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</Card>
 				</Grid>
 				<Grid key={`${productId}preview desc`} item xs={6}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenPreviewInfo(true); }}>
+					<IconButton size="small" onClick={() => {
+						setInfoTitle("Preview");
+						setInfoDescription("This is a preview of what your product will look like in the Gosti Marketplace. Click it to see a preview of your store page.");
+						setOpenInfoModal(true);
+					}}>
 						<InfoIcon />
 					</IconButton>
-					<Modal
-						open={openPreviewInfo}
-						onClose={() => { setOpenPreviewInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Preview
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								This is a preview of what your product will look like in the Gosti Marketplace. Click it to see a preview of your store page.
-							</Typography>
-						</Box>
-					</Modal>
 				</Grid>
 
-				<Grid key={`${productId}productId`} item xs={11}>
-					<TextField id="productIdTextField" sx={{ width: '100%' }} label="Product Id" disabled={true} variant="filled" value={productId} />
+				<Grid key={`${productId}productId`} item xs={12}>
+					<TextField id="productIdTextField" sx={{ width: '100%' }} label="Product Id" disabled={true} variant="filled" value={productId}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Product Id");
+								setInfoDescription("The unique identifier for your product. This cannot be changed.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}productId desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenProductIdInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openProductIdInfo}
-						onClose={() => { setOpenProductIdInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Product ID
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								An auto generated unique identifier (UUID v4). It is used as your NFT collection ID to identify your product. Cannot be changed.
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}mediaType`} item xs={11}>
+				<Grid key={`${productId}mediaType`} item xs={12}>
 					<Autocomplete
 						id={`${productId}mediaType-combo-box`}
 						defaultValue={mediaType}
@@ -237,199 +178,146 @@ export default function PublishingCard(props: PublishingCardProps) {
 						onChange={(event: any) => {
 							setMediaType(event.target.innerText);
 							media.mediaType = event.target.innerText;
+						}} />
+				</Grid>
+				<Grid key={`${productId}title`} item xs={12}>
+					<TextField id="titleTextField" sx={{ width: '100%' }} label="Title" variant="filled" value={title}
+						onChange={(event: any) => {
+							setTitle(event.target.value);
+							media.title = event.target.value;
 						}}
-					/>
+						inputProps={{
+							endAdornment: <IconButton size="small"><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}title`} item xs={11}>
-					<TextField id="titleTextField" sx={{ width: '100%' }} label="Title" variant="filled" value={title} onChange={(event: any) => {
-						setTitle(event.target.value);
-						media.title = event.target.value;
-					}} />
+				<Grid key={`${productId}shortDescription`} item xs={12}>
+					<TextField id="shortDescriptionTextField" sx={{ width: '100%' }} label="Short Description" variant="filled" value={shortDescription}
+						onChange={(event: any) => {
+							setShortDescription(event.target.value);
+							media.shortDescription = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Short Description");
+								setInfoDescription("Optional short description or tagline displayed under your capsule image.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}title desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenTitleInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openTitleInfo}
-						onClose={() => { setOpenTitleInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Title
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The name of your product.
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}description`} item xs={12}>
+					<TextField id="descriptionTextField" sx={{ width: '100%' }} multiline maxRows={4} label="Description" variant="filled" value={description}
+						onChange={(event: any) => {
+							setDescription(event.target.value);
+							media.description = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Description");
+								setInfoDescription("The main description of your game.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}shortDescription`} item xs={11}>
-					<TextField id="shortDescriptionTextField" sx={{ width: '100%' }} label="Short Description" variant="filled" value={shortDescription} onChange={(event: any) => {
-						setShortDescription(event.target.value);
-						media.shortDescription = event.target.value;
-					}} />
+				<Grid key={`${productId}longDescription`} item xs={12}>
+					<TextField id="longDescriptionTextField" sx={{ width: '100%' }} multiline maxRows={12} label="Long Description" variant="filled" value={longDescription}
+						onChange={(event: any) => {
+							setLongDescription(event.target.value);
+							media.longDescription = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Long Description");
+								setInfoDescription("The details page shown below your product. Supports Markdown");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}shortDescription desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenShortDescriptionInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openShortDescriptionInfo}
-						onClose={() => { setOpenShortDescriptionInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Short Description
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Optional short description or tagline displayed under your capsule image.
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}banner`} item xs={12}>
+					{ImageUpload({
+						marketplaces,
+						title: "Banner Image",
+						setGui: (value) => {
+							setBanner(value);
+							media.banner = value;
+						},
+						initialImage: banner
+					})}
+					<TextField id="bannerTextField" sx={{ width: '100%' }} label="Banner Image" variant="filled" value={banner}
+						onChange={(event: any) => {
+							setBanner(event.target.value);
+							media.banner = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Banner Image");
+								setInfoDescription("URI to your image (1200x700 recommended)");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}description`} item xs={11}>
-					<TextField id="descriptionTextField" sx={{ width: '100%' }} multiline maxRows={4} label="Description" variant="filled" value={description} onChange={(event: any) => {
-						setDescription(event.target.value);
-						media.description = event.target.value;
-					}} />
+				<Grid key={`${productId}capsuleImage`} item xs={12}>
+					{ImageUpload({
+						marketplaces,
+						title: "Capsule Image",
+						setGui: (value) => {
+							setCapsuleImage(value);
+							media.capsuleImage = value;
+						},
+						initialImage: capsuleImage
+					})}
+					<TextField id="capsuleImageTextField" sx={{ width: '100%' }} label="Capsule Image" variant="filled" value={capsuleImage}
+						onChange={(event: any) => {
+							setCapsuleImage(event.target.value);
+							media.capsuleImage = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Capsule Image");
+								setInfoDescription("URI to image (512x512 recommended)");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}description desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenDescriptionInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openDescriptionInfo}
-						onClose={() => { setOpenDescriptionInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Description
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The main description of your game.
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}icon`} item xs={12}>
+					{ImageUpload({
+						marketplaces,
+						title: "Icon",
+						setGui: (value) => {
+							setIcon(value);
+							media.icon = value;
+						},
+						initialImage: icon
+					})}
+					<TextField id="iconTextField" sx={{ width: '100%' }} label="Icon" variant="filled" value={icon}
+						onChange={(event: any) => {
+							setIcon(event.target.value);
+							media.icon = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Icon");
+								setInfoDescription("URI to an icon image (64x64 recommended)");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}longDescription`} item xs={11}>
-					<TextField id="longDescriptionTextField" sx={{ width: '100%' }} multiline maxRows={12} label="Long Description" variant="filled" value={longDescription} onChange={(event: any) => {
-						setLongDescription(event.target.value);
-						media.longDescription = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}longDescription desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenLongDescriptionInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openLongDescriptionInfo}
-						onClose={() => { setOpenLongDescriptionInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								longDescription
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The details page shown below your product. Supports <Link href="https://www.markdownguide.org/cheat-sheet/">Markdown</Link>
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}banner`} item xs={11}>
-					<TextField id="bannerTextField" sx={{ width: '100%' }} label="Banner Image" variant="filled" value={banner} onChange={(event: any) => {
-						setBanner(event.target.value);
-						media.banner = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}banner desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenBannerInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openBannerInfo}
-						onClose={() => { setOpenBannerInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								banner
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								URI to your image (1200x700 recommended)
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}capsuleImage`} item xs={11}>
-					<TextField id="capsuleImageTextField" sx={{ width: '100%' }} label="Capsule Image" variant="filled" value={capsuleImage} onChange={(event: any) => {
-						setCapsuleImage(event.target.value);
-						media.capsuleImage = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}capsuleImage desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenCapsuleImageInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openCapsuleImageInfo}
-						onClose={() => { setOpenCapsuleImageInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								capsuleImage
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								URI to image (512x512 recommended)
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}icon`} item xs={11}>
-					<TextField id="iconTextField" sx={{ width: '100%' }} label="Icon" variant="filled" value={icon} onChange={(event: any) => {
-						setIcon(event.target.value);
-						media.icon = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}icon desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenIconInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openIconInfo}
-						onClose={() => { setOpenIconInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								icon
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								URI to an image (64x64 recommended)
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}screenshots`} item xs={11}>
+				<Grid key={`${productId}screenshots`} item xs={12}>
+					{ImageUpload({
+						marketplaces,
+						title: "Add Screenshot",
+						setGui: (value) => {
+							screenshots.push(value);
+							setScreenshots([...screenshots]);
+						},
+						initialImage: screenshots[0]
+					})}
 					<Autocomplete
 						multiple
 						id={`${productId}screenshots-outlined`}
-						options={screenshots}
+						options={['']}
 						freeSolo
 						getOptionLabel={(option: any) => option}
-						defaultValue={[]}
+						defaultValue={screenshots}
 						filterSelectedOptions
 						onChange={(event: any, values: string[]) => {
 							setScreenshots(values);
@@ -442,29 +330,20 @@ export default function PublishingCard(props: PublishingCardProps) {
 								placeholder="+"
 							/>
 						)}
+						renderTags={(value: string[], getTagProps) =>
+							value.map((option: string, index: number) => (
+								<Chip
+									label={option}
+									{...getTagProps({ index })}
+									onClick={() => {
+										window.open(option);
+									}}
+								/>
+							))
+						}
 					/>
 				</Grid>
-				<Grid key={`${productId}screenshots desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenScreenshotsInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openScreenshotsInfo}
-						onClose={() => { setOpenScreenshotsInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								screenshots
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								List of URIs to images (1920x1080 recommended)
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}trailerSource`} item xs={11}>
+				<Grid key={`${productId}trailerSource`} item xs={12}>
 					<Autocomplete
 						id={`${productId}trailerSource-combo-box`}
 						defaultValue={trailerSource}
@@ -477,53 +356,21 @@ export default function PublishingCard(props: PublishingCardProps) {
 						}}
 					/>
 				</Grid>
-				<Grid key={`${productId}trailerSource desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenTrailerSourceInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openTrailerSourceInfo}
-						onClose={() => { setOpenTrailerSourceInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								trailerSource
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Where your video trailer is hosted
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}trailer`} item xs={12}>
+					<TextField id="trailerTextField" sx={{ width: '100%' }} label="Trailer" variant="filled" value={trailer}
+						onChange={(event: any) => {
+							setTrailer(event.target.value);
+							media.trailer = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Trailer");
+								setInfoDescription("The identifier for your video, https://www.youtube.com/watch?v=[DKF2-zCNJ0A] 👈 this value");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}trailer`} item xs={11}>
-					<TextField id="trailerTextField" sx={{ width: '100%' }} label="Trailer" variant="filled" value={trailer} onChange={(event: any) => {
-						setTrailer(event.target.value);
-						media.trailer = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}trailer desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenTrailerInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openTrailerInfo}
-						onClose={() => { setOpenTrailerInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								trailer
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The identifier for your video, https://www.youtube.com/watch?v=3_LIsH1VD7w 👈 this value
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}contentRating`} item xs={11}>
+				<Grid key={`${productId}contentRating`} item xs={12}>
 					<Autocomplete
 						id={`${productId}contentRating-combo-box`}
 						defaultValue={contentRating}
@@ -536,26 +383,6 @@ export default function PublishingCard(props: PublishingCardProps) {
 							media.contentRating = event.target.innerText;
 						}}
 					/>
-				</Grid>
-				<Grid key={`${productId}contentRating desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenContentRatingInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openContentRatingInfo}
-						onClose={() => { setOpenContentRatingInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								contentRating
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Self reported content rating based on <Link href="https://www.esrb.org/ratings-guide/">ESRB Rating</Link>
-							</Typography>
-						</Box>
-					</Modal>
 				</Grid>
 				<Grid key={`${productId}tags`} item xs={11}>
 					<Autocomplete
@@ -578,26 +405,6 @@ export default function PublishingCard(props: PublishingCardProps) {
 							/>
 						)}
 					/>
-				</Grid>
-				<Grid key={`${productId}tags desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenTagsInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openTagsInfo}
-						onClose={() => { setOpenTagsInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Content Tags
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Select tags that apply to the content included. Or create your own.
-							</Typography>
-						</Box>
-					</Modal>
 				</Grid>
 
 				<Grid key={`${productId}showAdult`} item xs={12}>
@@ -628,288 +435,83 @@ export default function PublishingCard(props: PublishingCardProps) {
 						/>
 					</Grid>
 					<Grid key={`${productId}adult tags desc`} item xs={1}>
-						<IconButton size="small" aria-label="info" onClick={() => { setOpenAdultInfo(true); }}>
+						<IconButton size="small"
+							onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Adult Content Tags");
+								setInfoDescription("Select tags that apply to the sexual content included. Or create your own.");
+							}}>
 							<InfoIcon />
 						</IconButton>
-						<Modal
-							open={openAdultInfo}
-							onClose={() => { setOpenAdultInfo(false); }}
-							aria-labelledby="modal-modal-title"
-							aria-describedby="modal-modal-description"
-						>
-							<Box sx={infoModalStyle}>
-								<Typography id="modal-modal-title" variant="h6" component="h2">
-									Adult Content Tags
-								</Typography>
-								<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-									Select tags that apply to the sexual content included. Or create your own.
-								</Typography>
-							</Box>
-						</Modal>
 					</Grid>
 				</>
 				}
-				<Grid key={`${productId}creator`} item xs={11}>
-					<TextField id="creatorTextField" sx={{ width: '100%' }} label="Developer/Creator" variant="filled" value={creator} onChange={(event: any) => {
-						setCreator(event.target.value);
-						media.creator = event.target.value;
-					}} />
+				<Grid key={`${productId}creators`} item xs={12}>
+					<Autocomplete
+						multiple
+						id={`${productId}creators-outlined`}
+						options={[]}
+						freeSolo
+						getOptionLabel={(option: any) => option}
+						defaultValue={creators}
+						onChange={(event: any, values: string[]) => {
+							setCreators(values);
+							media.creators = values;
+						}}
+						filterSelectedOptions
+						renderInput={(params) => (
+							<TextField
+								{...params}
+								label="Creator DIDs"
+								placeholder="+"
+							/>
+						)}
+					/>
 				</Grid>
-				<Grid key={`${productId}creator desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenCreatorInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openCreatorInfo}
-						onClose={() => { setOpenCreatorInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								creator
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The entity that created/developed the product
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}publisherDid`} item xs={12}>
+					<TextField id="publisherDidTextField" sx={{ width: '100%' }} label="Publisher DID" variant="filled" value={publisherDid}
+						onChange={(event: any) => {
+							setPublisherDid(event.target.value);
+							media.publisherDid = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Publisher DID");
+								setInfoDescription("The DID (Distributed Identity) Profile of the publisher. DID should not be changed after first mint.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}publisher`} item xs={11}>
-					<TextField id="publisherTextField" sx={{ width: '100%' }} label="Publisher" variant="filled" value={publisher} onChange={(event: any) => {
-						setPublisher(event.target.value);
-						media.publisher = event.target.value;
-					}} />
+				<Grid key={`${productId}paymentAddress`} item xs={12}>
+					<TextField id="paymentAddressTextField" sx={{ width: '100%' }} label="Payment Address" variant="filled" value={paymentAddress}
+						onChange={(event: any) => {
+							setPaymentAddress(event.target.value);
+							media.paymentAddress = event.target.value;
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Payment Address");
+								setInfoDescription("An XCH address where people can donate to support your work. This also works as your default royalty address.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}publisher desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenPublisherInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openPublisherInfo}
-						onClose={() => { setOpenPublisherInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								publisher
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The entity who is publishing the product. (Can be same as creator)
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}version`} item xs={12}>
+					<TextField id="versionTextField" sx={{ width: '100%' }} label="Version" variant="filled" value={version}
+						onChange={(event: any) => {
+							setVersion(event.target.value);
+							media.version = event.target.value;
+						}}
+						inputProps={{
+							inputMode: 'numeric',
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Version");
+								setInfoDescription("Current version number. Ideally using Semantic Versioning. But other numeric formats should work.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}publisherDid`} item xs={11}>
-					<TextField id="publisherDidTextField" sx={{ width: '100%' }} label="Publisher DID" variant="filled" value={publisherDid} onChange={(event: any) => {
-						setPublisherDid(event.target.value);
-						media.publisherDid = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}publisherDid desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenPublisherDidInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openPublisherDidInfo}
-						onClose={() => { setOpenPublisherDidInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								publisherDid
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								The DID (Distributed Identity) of the publisher. DID cannot be changed after first mint.
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}paymentAddress`} item xs={11}>
-					<TextField id="paymentAddressTextField" sx={{ width: '100%' }} label="Payment Address" variant="filled" value={paymentAddress} onChange={(event: any) => {
-						setPaymentAddress(event.target.value);
-						media.paymentAddress = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}paymentAddress desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenPaymentAddressInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openPaymentAddressInfo}
-						onClose={() => { setOpenPaymentAddressInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								paymentAddress
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								An XCH address where people can donate to support your work. This also works as your default royalty address.
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}twitter`} item xs={11}>
-					<TextField id="twitterTextField" sx={{ width: '100%' }} label="Twitter" variant="filled" value={twitter} onChange={(event: any) => {
-						setTwitter(event.target.value);
-						media.twitter = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}twitter desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenTwitterInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openTwitterInfo}
-						onClose={() => { setOpenTwitterInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								twitter
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								ex. @username
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}website`} item xs={11}>
-					<TextField id="websiteTextField" sx={{ width: '100%' }} label="Website" variant="filled" value={website} onChange={(event: any) => {
-						setWebsite(event.target.value);
-						media.website = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}website desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenWebsiteInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openWebsiteInfo}
-						onClose={() => { setOpenWebsiteInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								website
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Your Products Website.
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}discord`} item xs={11}>
-					<TextField id="discordTextField" sx={{ width: '100%' }} label="Discord" variant="filled" value={discord} onChange={(event: any) => {
-						setDiscord(event.target.value);
-						media.discord = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}discord desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenDiscordInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openDiscordInfo}
-						onClose={() => { setOpenDiscordInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								discord
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								An invite link to your discord server
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}instagram`} item xs={11}>
-					<TextField id="instagramTextField" sx={{ width: '100%' }} label="Instagram" variant="filled" value={instagram} onChange={(event: any) => {
-						setInstagram(event.target.value);
-						media.instagram = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}instagram desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenInstagramInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openInstagramInfo}
-						onClose={() => { setOpenInstagramInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								instagram
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								ex. @username
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}facebook`} item xs={11}>
-					<TextField id="facebookTextField" sx={{ width: '100%' }} label="Facebook" variant="filled" value={facebook} onChange={(event: any) => {
-						setFacebook(event.target.value);
-						media.facebook = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}facebook desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenFacebookInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openFacebookInfo}
-						onClose={() => { setOpenFacebookInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								facebook
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Facebook link
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}version`} item xs={11}>
-					<TextField id="versionTextField" inputProps={{ inputMode: 'numeric' }} sx={{ width: '100%' }} label="Version" variant="filled" value={version} onChange={(event: any) => {
-						setVersion(event.target.value);
-						media.version = event.target.value;
-					}} />
-				</Grid>
-				<Grid key={`${productId}version desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenVersionInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openVersionInfo}
-						onClose={() => { setOpenVersionInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								version
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Current version number. Ideally using <Link href="https://semver.org/">Semantic Versioning</Link>. But other numeric formats should work.
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId}status`} item xs={11}>
+				<Grid key={`${productId}status`} item xs={12}>
 					<Autocomplete
 						id={`${productId}status-combo-box`}
 						defaultValue={status}
@@ -922,76 +524,50 @@ export default function PublishingCard(props: PublishingCardProps) {
 						renderInput={(params) => <TextField {...params} label="Development Status" />}
 					/>
 				</Grid>
-				<Grid key={`${productId}status desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenStatusInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openStatusInfo}
-						onClose={() => { setOpenStatusInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								status
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Current Development Status
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
 
 				<Grid key={`${productId}Files info`} item xs={12}>
 					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
 						Local file paths are not stored, they are only used to generate torrent files locally.
 					</Typography>
 				</Grid>
-				<Grid key={`${productId}windows files`} item xs={11}>
-					<TextField id="windowsTextField" sx={{ width: '100%' }} label="Windows File Path" variant="filled" value={windowsFilePath} onChange={(event: any) => {
-						setWindowsFilePath(event.target.value);
-					}} />
+				<Grid key={`${productId}windows files`} item xs={12}>
+					<TextField id="windowsTextField" sx={{ width: '100%' }} label="Windows File Path" variant="filled" value={windowsFilePath}
+						onChange={(event: any) => {
+							setWindowsFilePath(event.target.value);
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("File Path");
+								setInfoDescription("Paste the full path to the (un-zipped) root of your projects files that runs on windows.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}windows files desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenFilesInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openFilesInfo}
-						onClose={() => { setOpenFilesInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Files
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Paste the full path to the (un-zipped) root of your projects files.
-							</Typography>
-						</Box>
-					</Modal>
+				<Grid key={`${productId}mac files`} item xs={12}>
+					<TextField id="windowsTextField" sx={{ width: '100%' }} label="Mac File Path" variant="filled" value={macFilePath}
+						onChange={(event: any) => {
+							setMacFilePath(event.target.value);
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("File Path");
+								setInfoDescription("Paste the full path to the (un-zipped) root of your projects files that runs on mac.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
-				<Grid key={`${productId}mac files`} item xs={11}>
-					<TextField id="windowsTextField" sx={{ width: '100%' }} label="Mac File Path" variant="filled" value={macFilePath} onChange={(event: any) => {
-						setMacFilePath(event.target.value);
-					}} />
-				</Grid>
-				<Grid key={`${productId}mac files desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenFilesInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-				</Grid>
-				<Grid key={`${productId}linux files`} item xs={11}>
-					<TextField id="windowsTextField" sx={{ width: '100%' }} label="Linux File Path" variant="filled" value={linuxFilePath} onChange={(event: any) => {
-						setLinuxFilePath(event.target.value);
-					}} />
-				</Grid>
-				<Grid key={`${productId}linux files desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenFilesInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
+				<Grid key={`${productId}linux files`} item xs={12}>
+					<TextField id="windowsTextField" sx={{ width: '100%' }} label="Linux File Path" variant="filled" value={linuxFilePath}
+						onChange={(event: any) => {
+							setLinuxFilePath(event.target.value);
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("File Path");
+								setInfoDescription("Paste the full path to the (un-zipped) root of your projects files that runs on linux.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
 				<Grid key={`${productId}Update Files`} item xs={11}>
 					<Button sx={{ width: '100%' }} variant="contained" onClick={onFilesUpdate}>
@@ -999,106 +575,100 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</Button>
 				</Grid>
 				<Grid key={`${productId}Update Files desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenTorrentsInfo(true); }}>
+					<IconButton size="small"
+						onClick={() => {
+							setOpenInfoModal(true);
+							setInfoTitle("Update Torrent Files");
+							setInfoDescription("This button generates your torrent files to be included in an update. Don't press it unless you intend push updated project files to everyone who owns your product.");
+						}}>
 						<InfoIcon />
 					</IconButton>
-					<Modal
-						open={openTorrentsInfo}
-						onClose={() => { setOpenTorrentsInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Updating Torrents
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								This button generates your torrent files to be included in an update. Don't press it unless you intend push updated project files to everyone who owns your product.
-							</Typography>
-						</Box>
-					</Modal>
 				</Grid>
-				<Grid key={`${productId}executables`} item xs={11}>
-					<TextField id="executablesTextField" sx={{ width: '100%' }} multiline maxRows={6} label="Executables" variant="filled" value={executables} defaultValue={DefaultExecutables} onChange={(event: any) => {
-						setExecutables(event.target.value);
-						media.executables = JSON.parse(event.target.value);
-					}} />
-				</Grid>
-				<Grid key={`${productId}executables desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenExecutablesInfo(true); }}>
-						<InfoIcon />
-					</IconButton>
-					<Modal
-						open={openExecutablesInfo}
-						onClose={() => { setOpenExecutablesInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Executables
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Specifies the relative path to your executables from your project root. If you do not support a given operating system, leave it empty, don't delete it.
-							</Typography>
-						</Box>
-					</Modal>
-					<Typography variant="body2"></Typography>
+				<Grid key={`${productId}executables`} item xs={12}>
+					<TextField id="executablesTextField" sx={{ width: '100%' }} multiline maxRows={6} label="Executables" variant="filled" value={executables} defaultValue={DefaultExecutables}
+						onChange={(event: any) => {
+							setExecutables(event.target.value);
+							media.executables = JSON.parse(event.target.value);
+						}}
+						inputProps={{
+							endAdornment: <IconButton size="small" onClick={() => {
+								setOpenInfoModal(true);
+								setInfoTitle("Executables");
+								setInfoDescription("Specifies the relative path to your executables from your project root. If you do not support a given operating system, leave it empty, don't delete it.");
+							}}><InfoIcon /></IconButton>
+						}} />
 				</Grid>
 				<Grid key={`${productId}Update`} item xs={5}>
-					<Button sx={{ width: '100%' }} variant="contained" onClick={() => {
+					<Button sx={{ width: '100%' }} variant="contained" onClick={async () => {
+						const nostrPool = new SimplePool();
+
+						const foundEvent = await nostrPool.get(gostiConfig.nostrRelays, { ids: [media.nostrEventId] });
+						console.log("query for event", foundEvent);
+						console.log("onExecuteUpdate", media);
+						if (!media.nostrEventId || foundEvent) {
+							console.log("Creating Nostr Thread");
+							if (!gostiConfig.identity.currentNostrPublicKey) {
+								alert("No public key found. Please set up your profile.");
+								return;
+							}
+
+							const pk = gostiConfig.identity.currentNostrPublicKey;
+
+							if (!pk) {
+								console.log("No public key found");
+								alert("No public key found. Please set up your profile.");
+								return;
+							}
+
+							const createdAt = Math.floor(Date.now() / 1000);
+
+							const event: NostrEvent = {
+								content: media.productId,
+								kind: 1,
+								tags: [
+									["i", `chia:${media.publisherDid}`, gostiConfig.identity.proof],
+								],
+								created_at: createdAt,
+								pubkey: pk,
+								id: '',
+								sig: ''
+							};
+							event.id = getEventHash(event);
+							event.sig = await invoke("sign_nostr", { message: event.id });
+							media.nostrEventId = event.id;
+							console.log("Creating Thread", event);
+							await Promise.any(nostrPool.publish(gostiConfig.nostrRelays, event));
+							console.log("Thread Created", event);
+						}
 						onExecuteUpdate(media);
 					}}>
 						Commit Update
 					</Button>
 				</Grid>
 				<Grid key={`${productId}update desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenUpdateInfo(true); }}>
+					<IconButton size="small" onClick={() => {
+						setOpenInfoModal(true);
+						setInfoTitle("Commit Update");
+						setInfoDescription("Pressing this button will push this update to your dataStore. Please review all fields above before committing, this will require an on chain transaction for every update and will use the transaction fee at the top of the page.");
+					}}>
 						<InfoIcon />
 					</IconButton>
-					<Modal
-						open={openUpdateInfo}
-						onClose={() => { setOpenUpdateInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Commit Update
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Pressing this button will push this update to your dataStore. Please review all fields above before committing, this will require an on chain transaction for every update and will use the transaction fee at the top of the page.
-							</Typography>
-						</Box>
-					</Modal>
 				</Grid>
 				<Grid key={`${productId}Mint`} item xs={5}>
-					<Button sx={{ width: '100%' }} variant="contained" onClick={() => { setOpenMintPage(true); }}>
+					<Button sx={{ width: '100%' }} variant="contained" onClick={() => {
+						setOpenMintPage(true);
+					}}>
 						Mint Copies
 					</Button>
 				</Grid>
 				<Grid key={`${productId}mint desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenMintInfo(true); }}>
+					<IconButton size="small" onClick={() => {
+						setOpenInfoModal(true);
+						setInfoTitle("Mint Copies");
+						setInfoDescription("Mint copies of your product for sale or distribution.");
+					}}>
 						<InfoIcon />
 					</IconButton>
-					<Modal
-						open={openMintInfo}
-						onClose={() => { setOpenMintInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Mint Copies
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Mint copies of your product for sale or distribution.
-							</Typography>
-						</Box>
-					</Modal>
-				</Grid>
-				<Grid key={`${productId} Divider`} item xs={12}>
-					<Divider />
 				</Grid>
 				<Divider />
 				<Grid key={`${productId}marketplaces`} item xs={10}>
@@ -1143,27 +713,13 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</IconButton>
 				</Grid>
 				<Grid key={`${productId}marketplaces desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenStatusInfo(true); }}>
+					<IconButton size="small" onClick={() => {
+						setOpenInfoModal(true);
+						setInfoTitle("Marketplaces");
+						setInfoDescription("Urls of all marketplaces you want to request listing on, or push updates too.");
+					}}>
 						<InfoIcon />
 					</IconButton>
-					<Modal
-						open={openStatusInfo}
-						onClose={() => {
-							console.log();
-							setOpenStatusInfo(false);
-						}}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Marketplaces
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Urls of all marketplaces you want to request listing on, or push updates too.
-							</Typography>
-						</Box>
-					</Modal>
 				</Grid>
 				<Grid key={`${productId}Request Listing / Update Marketplaces`} item xs={8}>
 					<Button sx={{ width: '100%' }} variant="contained" onClick={onRequestListingOrUpdate}>
@@ -1186,25 +742,17 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</ToggleButtonGroup>
 				</Grid>
 				<Grid key={`${productId}Request Listing / Update Marketplaces desc`} item xs={1}>
-					<IconButton size="small" aria-label="info" onClick={() => { setOpenRequestListingOrUpdateInfo(true); }}>
+					<IconButton size="small"
+						onClick={() => {
+							setOpenInfoModal(true);
+							setInfoTitle("Request Listing / Update Marketplaces");
+							setInfoDescription("Requests listing on all marketplaces you have selected above. If you have already listed on a marketplace, this will push updates to that marketplace. During the Beta, you can freely set your product to public or private. Once the beta is over, there will be a verification process before you can set your product as public.");
+						}}>
 						<InfoIcon />
 					</IconButton>
-					<Modal
-						open={openRequestListingOrUpdateInfo}
-						onClose={() => { setOpenRequestListingOrUpdateInfo(false); }}
-						aria-labelledby="modal-modal-title"
-						aria-describedby="modal-modal-description"
-					>
-						<Box sx={infoModalStyle}>
-							<Typography id="modal-modal-title" variant="h6" component="h2">
-								Request Listing / Update Marketplaces
-							</Typography>
-							<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-								Requests listing on all marketplaces you have selected above. If you have already listed on a marketplace, this will push updates to that marketplace.
-								During the Beta, you can freely set your product to public or private. Once the beta is over, there will be a verification process before you can set your product as public.
-							</Typography>
-						</Box>
-					</Modal>
+				</Grid>
+				<Grid key={`${productId} Divider`} item xs={12}>
+					<Divider />
 				</Grid>
 				{/* <Grid key={"dataStore create"} item xs={4}>
 					<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
@@ -1214,9 +762,9 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</Button>
 				</Grid> */}
 			</Grid>
-			{MintingPage({ open: openMintPage, setOpen: setOpenMintPage, ...props })}
+			{MintingPage({ open: openMintPage, setOpen: setOpenMintPage, marketplaces, ...props })}
 			{StorePage({ media, open: openStore, setOpen: setOpenStore } as StorePageProps)}
-			{AddMarketplaceModal(addMarketplaceModalOpen, () => { setAddMarketplaceModalOpen(false); }, config, setConfig)}
+			{AddMarketplaceModal(addMarketplaceModalOpen, () => { setAddMarketplaceModalOpen(false); })}
 		</Paper >
 	);
 };

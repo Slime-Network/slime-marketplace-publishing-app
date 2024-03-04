@@ -1,16 +1,22 @@
+import { Buffer } from 'buffer';
+
 import AddIcon from '@mui/icons-material/Add';
-import { Autocomplete, Box, Button, Fab, Grid, Modal, Paper, TextField, Typography } from "@mui/material";
-import { invoke } from "@tauri-apps/api/tauri";
+import InfoIcon from '@mui/icons-material/Info';
+import { Autocomplete, Box, Button, Fab, Grid, IconButton, Modal, Paper, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { v4 as uuid } from 'uuid';
 
 import MainTopBar from "./components/MainTopBar";
 import { ProductList } from "./components/ProductList";
-import { errorModalStyle, successModalStyle } from "./gosti-shared/constants";
-// import { useJsonRpc } from './gosti-shared/contexts/JsonRpcContext';
+import { errorModalStyle, infoModalStyle, successModalStyle } from "./gosti-shared/constants";
 import { useWalletConnect } from './gosti-shared/contexts/WalletConnectContext';
-import { CreateDataStoreRequest, GetOwnedDataStoresRequest, GetPublishedMediaRequest, PublishMediaRequest } from './gosti-shared/types/gosti/GostiRpcTypes';
+import { useWalletConnectRpc } from './gosti-shared/contexts/WalletConnectRpcContext';
 import { Media } from "./gosti-shared/types/gosti/Media";
+import { BatchUpdateRequest } from './gosti-shared/types/walletconnect/rpc/BatchUpdate';
+import { CreateDataStoreRequest } from './gosti-shared/types/walletconnect/rpc/CreateDataStore';
+import { GetKeysValuesRequest, GetKeysValuesResponse } from './gosti-shared/types/walletconnect/rpc/GetKeysValues';
+import { GetOwnedStoresRequest } from './gosti-shared/types/walletconnect/rpc/GetOwnedStores';
+import { GetRootRequest, GetRootResponse } from './gosti-shared/types/walletconnect/rpc/GetRoot';
 
 export const App = () => {
 
@@ -22,9 +28,13 @@ export const App = () => {
 		disconnect,
 	} = useWalletConnect();
 
-	// const {
-
-	// } = useJsonRpc();
+	const {
+		getOwnedStores,
+		createDataStore,
+		getRoot,
+		getKeysValues,
+		batchUpdate,
+	} = useWalletConnectRpc();
 
 	const onConnect = () => {
 		if (typeof client === "undefined") {
@@ -43,6 +53,8 @@ export const App = () => {
 	const [dataStoreList, setDataStoreList] = useState<string[]>([]);
 	const [productList, setProductList] = useState<Media[]>([]);
 
+	const [openFeeInfo, setOpenFeeInfo] = useState(false);
+
 	const [openCommitStatusSuccess, setOpenCommitStatusSuccess] = useState(false);
 	const [openCommitStatusFailed, setOpenCommitStatusFailed] = useState(false);
 	const [openCreatingDataStore, setOpenCreatingDataStore] = useState(false);
@@ -52,8 +64,8 @@ export const App = () => {
 
 	useEffect(() => {
 		const getIds = async () => {
-			const response = await invoke<any>("make_chia_rpc_call", { command: "get_owned_stores", params: {} as GetOwnedDataStoresRequest });
-			setDataStoreList(response.store_ids);
+			const response = await getOwnedStores({} as GetOwnedStoresRequest);
+			setDataStoreList(response.storeIds);
 		};
 		if (dataStoreList && dataStoreList.length === 0) {
 			console.log("dataStore list ", dataStoreList);
@@ -62,29 +74,86 @@ export const App = () => {
 			console.log("dataStore list ", dataStoreList);
 		}
 
-	}, [dataStoreList, setDataStoreList]);
+	}, [dataStoreList, getOwnedStores, setDataStoreList]);
 
 	useEffect(() => {
 		const getProducts = async (id: string) => {
-			console.log("getting products", id);
-			const response = await invoke<any>("get_published_media", { params: { dataStoreId: id } as GetPublishedMediaRequest });
-			console.log("products", response);
-			setProductList(response.media);
+			const root: GetRootResponse = await getRoot({ id } as GetRootRequest);
+			const entries: GetKeysValuesResponse = await getKeysValues({ id, rootHash: root.hash } as GetKeysValuesRequest);
+			setProductList(entries.keysValues.map((entry: any) => JSON.parse(Buffer.from(entry.value.split('x')[1], 'hex').toString('utf-8'))));
 		};
 		if (dataStoreId !== undefined) {
 			getProducts(dataStoreId);
 		}
 
-	}, [dataStoreId]);
+	}, [dataStoreId, getKeysValues, getRoot]);
 
 	const updateDataStore = async (media: Media) => {
-		const response = await invoke<any>("publish_media", { params: { dataStoreId, media, fee: transactionFee } as PublishMediaRequest });
-		if (response && response.message) {
-			setOpenCommitStatusSuccess(true);
-			setCommitTransactionId(response.message);
-		}
-		else {
-			setOpenCommitStatusFailed(true);
+
+		const root: GetRootResponse = await getRoot({ id: dataStoreId } as GetRootRequest);
+
+		console.log("root", root);
+
+		const entries: GetKeysValuesResponse = await getKeysValues({ id: dataStoreId, rootHash: root.hash } as GetKeysValuesRequest);
+
+		console.log("entries", entries);
+
+		console.log("media", media);
+		if (entries.keysValues.length === 0) {
+			const changelist = [
+				{
+					"action": "insert",
+					"key": Buffer.from(media.productId).toString('hex'),
+					"value": Buffer.from(JSON.stringify(media)).toString('hex'),
+				},
+			];
+			console.log("changelist", changelist, media);
+
+			batchUpdate({ id: dataStoreId, changelist, fee: transactionFee } as BatchUpdateRequest).then((response) => {
+				console.log("batch update response", response);
+				if (response && response.success) {
+					setOpenCommitStatusSuccess(true);
+					setCommitTransactionId(response.txId);
+				}
+				else {
+					setOpenCommitStatusFailed(true);
+				}
+			});
+		} else {
+			entries.keysValues.forEach((entry: any) => {
+				const productId = Buffer.from(entry.key.split('x')[1], 'hex').toString('utf-8');
+				console.log("productId", productId, media.productId);
+				if (productId === media.productId) {
+					console.log("found product", productId);
+
+					const changelist = [
+						{
+							"action": "delete",
+							"key": Buffer.from(media.productId).toString('hex'),
+						},
+						{
+							"action": "insert",
+							"key": Buffer.from(media.productId).toString('hex'),
+							"value": Buffer.from(JSON.stringify(media)).toString('hex'),
+						},
+					];
+					console.log("changelist", changelist, media);
+
+					batchUpdate({ id: dataStoreId, changelist, fee: transactionFee } as BatchUpdateRequest).then((response) => {
+						console.log("batch update response", response);
+						if (response && response.success) {
+							setOpenCommitStatusSuccess(true);
+							setCommitTransactionId(response.txId);
+						}
+						else {
+							setOpenCommitStatusFailed(true);
+						}
+					});
+				} else {
+					console.log("Product found", productId);
+					setOpenCommitStatusFailed(true);
+				}
+			});
 		}
 	};
 
@@ -111,16 +180,16 @@ export const App = () => {
 					</Grid>
 					<Grid key={"dataStore create"} item xs={4}>
 						<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
-							const response = await invoke<any>("make_chia_rpc_call", { command: "create_data_store", params: { fee: transactionFee } as CreateDataStoreRequest });
+							const response = await createDataStore({ fee: transactionFee } as CreateDataStoreRequest);
 							console.log("Created Datastore", response);
 							setDataStoreList(dataStoreList.concat([response.id]));
-							setDataStoreId(response.dataStoreId);
+							setDataStoreId(response.id);
 							setOpenCreatingDataStore(true);
 						}}>
 							Create New DataStore
 						</Button>
 					</Grid>
-					<Grid key={"Transaction Fee"} item xs={3}>
+					<Grid key={"Transaction Fee"} item xs={12}>
 						<TextField id="Transaction fee tf" variant="filled" type="number" label="Transaction Fee (mojo)" value={transactionFee} onChange={(e) => {
 							const regex = /^[0-9\b]+$/;
 							if (e.target.value === "" || regex.test(e.target.value)) {
@@ -128,9 +197,24 @@ export const App = () => {
 							}
 						}
 						} />
-					</Grid>
-					<Grid key={"Transaction Fee"} item xs={9}>
-						<Typography>Creating a Datastore and updating a product require an on-chain transaction. This optional fee can help speed up your transactions.</Typography>
+						<IconButton size="small" aria-label="info" onClick={() => { setOpenFeeInfo(true); }}>
+							<InfoIcon />
+						</IconButton>
+						<Modal
+							open={openFeeInfo}
+							onClose={() => { setOpenFeeInfo(false); }}
+							aria-labelledby="modal-modal-title"
+							aria-describedby="modal-modal-description"
+						>
+							<Box sx={infoModalStyle}>
+								<Typography id="modal-modal-title" variant="h6" component="h2">
+									Transaction Fee
+								</Typography>
+								<Typography id="modal-modal-description" sx={{ mt: 2 }}>
+									Creating a Datastore and creating/updating a product require an on-chain transaction. This optional fee can help speed up your transaction if traffic is high. Fee is in mojo (1 XCH = 1,000,000,000,000 mojo)
+								</Typography>
+							</Box>
+						</Modal>
 					</Grid>
 				</Grid>
 
