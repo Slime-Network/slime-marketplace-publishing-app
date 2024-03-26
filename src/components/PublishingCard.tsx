@@ -5,7 +5,6 @@ import {
 	Grid, TextField, Autocomplete, Switch, FormControlLabel,
 	Button, Box, Modal, IconButton, Chip, Divider, ToggleButtonGroup, ToggleButton
 } from '@mui/material';
-import { invoke } from "@tauri-apps/api/tauri";
 import { SimplePool } from 'nostr-tools';
 import * as React from 'react';
 
@@ -19,7 +18,6 @@ import {
 } from '../gosti-shared/constants';
 import { useGostiApi } from '../gosti-shared/contexts/GostiApiContext';
 import { useMarketplaceApi } from '../gosti-shared/contexts/MarketplaceApiContext';
-import { GenerateTorrentsRequest } from '../gosti-shared/types/gosti/GostiRpcTypes';
 import { RequestListingOrUpdateRequest, Marketplace } from '../gosti-shared/types/gosti/MarketplaceApiTypes';
 import type { Media } from '../gosti-shared/types/gosti/Media';
 import { getEventHash, NostrEvent } from '../gosti-shared/utils/nostr';
@@ -71,7 +69,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 		setOpenStore(true);
 	};
 
-	const { gostiConfig } = useGostiApi();
+	const { gostiConfig, signNostrMessage } = useGostiApi();
 
 	const [marketplaces, setMarketplaces] = React.useState<Marketplace[]>([]);
 	const [selectedMarketplaces, setSelectedMarketplaces] = React.useState<Marketplace[]>([]);
@@ -88,12 +86,11 @@ export default function PublishingCard(props: PublishingCardProps) {
 		const randPassword = new Array(10).fill("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz").map(x => (function (chars) { const umax = 2 ** 32; const r = new Uint32Array(1); const max = umax - (umax % chars.length); do { crypto.getRandomValues(r); } while (r[0] > max); return chars[r[0] % chars.length]; })(x)).join('');
 		setPassword(randPassword);
 		media.password = randPassword;
-		const sourcePaths = {
-			windows: windowsFilePath,
-			mac: macFilePath,
-			linux: linuxFilePath,
-		};
-		invoke("generateTorrents", { sourcePaths, media } as GenerateTorrentsRequest);
+		// const sourcePaths = {
+		// 	windows: windowsFilePath,
+		// 	mac: macFilePath,
+		// 	linux: linuxFilePath,
+		// };
 	};
 
 	const onRequestListingOrUpdate = async () => {
@@ -634,11 +631,10 @@ export default function PublishingCard(props: PublishingCardProps) {
 								sig: ''
 							};
 							event.id = getEventHash(event);
-							event.sig = await invoke("sign_nostr", { message: event.id });
+							event.sig = await signNostrMessage({ message: event.id });
 							media.nostrEventId = event.id;
-							console.log("Creating Thread", event);
+
 							await Promise.any(nostrPool.publish(gostiConfig.nostrRelays, event));
-							console.log("Thread Created", event);
 						}
 						onExecuteUpdate(media);
 					}}>

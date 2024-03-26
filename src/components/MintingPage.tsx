@@ -525,8 +525,7 @@ export default function MintingPage(props: MintingPageProps) {
 							console.log("metadata_list: ", metadataList);
 
 
-
-							const response: MintBulkResponse = await mintBulk({
+							const mintRequest: MintBulkRequest = {
 								walletId: mintWallet,
 								metadataList,
 								royaltyPercentage: royaltyPercentage * 100,
@@ -535,7 +534,10 @@ export default function MintingPage(props: MintingPageProps) {
 								mintFromDid: true,
 								fee,
 								reusePuzhash: false,
-							} as MintBulkRequest);
+							};
+							console.log("mintRequest: ", mintRequest);
+
+							const response: MintBulkResponse = await mintBulk(mintRequest);
 
 							console.log("mint response: ", response);
 
@@ -544,22 +546,6 @@ export default function MintingPage(props: MintingPageProps) {
 							} as PushTxRequest);
 
 							console.log("transaction: ", transaction);
-
-							// await invoke("gosti_bulk_nft_mint", {
-							// 	params: {
-							// 		quantity,
-							// 		batchSize,
-							// 		imageUris: displayImageUris,
-							// 		metadataUris,
-							// 		licenseUris,
-							// 		publisherDid: media.publisherDid,
-							// 		receiveAddress,
-							// 		royaltyAddress,
-							// 		royaltyPercentage,
-							// 		fee,
-							// 		salePrice: price,
-							// 	}
-							// } as MintNftCopiesRequest);
 						}}>
 							Start Minting
 						</Button>

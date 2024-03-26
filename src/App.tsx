@@ -17,6 +17,7 @@ import { CreateDataStoreRequest } from './gosti-shared/types/walletconnect/rpc/C
 import { GetKeysValuesRequest, GetKeysValuesResponse } from './gosti-shared/types/walletconnect/rpc/GetKeysValues';
 import { GetOwnedStoresRequest } from './gosti-shared/types/walletconnect/rpc/GetOwnedStores';
 import { GetRootRequest, GetRootResponse } from './gosti-shared/types/walletconnect/rpc/GetRoot';
+import { RequestPermissionsRequest } from './gosti-shared/types/walletconnect/rpc/RequestPermissions';
 
 export const App = () => {
 
@@ -34,6 +35,7 @@ export const App = () => {
 		getRoot,
 		getKeysValues,
 		batchUpdate,
+		requestPermissions,
 	} = useWalletConnectRpc();
 
 	const onConnect = () => {
@@ -64,6 +66,8 @@ export const App = () => {
 
 	useEffect(() => {
 		const getIds = async () => {
+			const resp = await requestPermissions({ commands: ['getOwnedStores', 'getDIDInfo', 'getRoot', 'getKeysValues'] } as RequestPermissionsRequest);
+			console.log("requestPermissions response", resp);
 			const response = await getOwnedStores({} as GetOwnedStoresRequest);
 			setDataStoreList(response.storeIds);
 		};
@@ -74,7 +78,7 @@ export const App = () => {
 			console.log("dataStore list ", dataStoreList);
 		}
 
-	}, [dataStoreList, getOwnedStores, setDataStoreList]);
+	}, [dataStoreList, getOwnedStores, requestPermissions, setDataStoreList]);
 
 	useEffect(() => {
 		const getProducts = async (id: string) => {
