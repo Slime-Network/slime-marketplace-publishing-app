@@ -631,7 +631,9 @@ export default function PublishingCard(props: PublishingCardProps) {
 								sig: ''
 							};
 							event.id = getEventHash(event);
-							event.sig = await signNostrMessage({ message: event.id });
+							const signResp = await signNostrMessage({ message: event.id });
+							console.log("signResp", signResp);
+							event.sig = signResp.signature;
 							media.nostrEventId = event.id;
 
 							await Promise.any(nostrPool.publish(gostiConfig.nostrRelays, event));
