@@ -1,1 +1,1 @@
-# gosti-marketplace-publishing-dapp
+# slime-marketplace-publishing-dapp

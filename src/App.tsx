@@ -2,45 +2,36 @@ import { Buffer } from 'buffer';
 
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
-import { Autocomplete, Box, Button, Fab, Grid, IconButton, Modal, Paper, TextField, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { Autocomplete, Box, Button, Fab, IconButton, Paper, Stack, TextField, Tooltip } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 
-import MainTopBar from "./components/MainTopBar";
-import { ProductList } from "./components/ProductList";
-import { errorModalStyle, infoModalStyle, successModalStyle } from "./gosti-shared/constants";
-import { useWalletConnect } from './gosti-shared/contexts/WalletConnectContext';
-import { useWalletConnectRpc } from './gosti-shared/contexts/WalletConnectRpcContext';
-import { Media } from "./gosti-shared/types/gosti/Media";
-import { BatchUpdateRequest } from './gosti-shared/types/walletconnect/rpc/BatchUpdate';
-import { CreateDataStoreRequest } from './gosti-shared/types/walletconnect/rpc/CreateDataStore';
-import { GetKeysValuesRequest, GetKeysValuesResponse } from './gosti-shared/types/walletconnect/rpc/GetKeysValues';
-import { GetOwnedStoresRequest } from './gosti-shared/types/walletconnect/rpc/GetOwnedStores';
-import { GetRootRequest, GetRootResponse } from './gosti-shared/types/walletconnect/rpc/GetRoot';
-import { RequestPermissionsRequest } from './gosti-shared/types/walletconnect/rpc/RequestPermissions';
+import MainTopBar from './components/MainTopBar';
+import ProductList from './components/ProductList';
+import { InfoModal } from './slime-shared/components/InfoModal';
+import { RatingsOrgs } from './slime-shared/constants/content-ratings';
+import { useSlimeApi } from './slime-shared/contexts/SlimeApiContext';
+import { useWalletConnect } from './slime-shared/contexts/WalletConnectContext';
+import { useWalletConnectRpc } from './slime-shared/contexts/WalletConnectRpcContext';
+import { Media } from './slime-shared/types/slime/Media';
+import { BatchUpdateRequest } from './slime-shared/types/walletconnect/rpc/BatchUpdate';
+import { CreateDataStoreRequest } from './slime-shared/types/walletconnect/rpc/CreateDataStore';
+import { GetKeysValuesRequest, GetKeysValuesResponse } from './slime-shared/types/walletconnect/rpc/GetKeysValues';
+import { GetOwnedStoresRequest } from './slime-shared/types/walletconnect/rpc/GetOwnedStores';
+import { GetRootRequest, GetRootResponse } from './slime-shared/types/walletconnect/rpc/GetRoot';
+import { RequestPermissionsRequest } from './slime-shared/types/walletconnect/rpc/RequestPermissions';
 
 export const App = () => {
+	const { client, pairings, session, connect, disconnect } = useWalletConnect();
 
-	const {
-		client,
-		pairings,
-		session,
-		connect,
-		disconnect,
-	} = useWalletConnect();
+	const { getOwnedStores, createDataStore, getRoot, getKeysValues, batchUpdate, requestPermissions } =
+		useWalletConnectRpc();
 
-	const {
-		getOwnedStores,
-		createDataStore,
-		getRoot,
-		getKeysValues,
-		batchUpdate,
-		requestPermissions,
-	} = useWalletConnectRpc();
+	const { slimeConfig } = useSlimeApi();
 
 	const onConnect = () => {
-		if (typeof client === "undefined") {
-			throw new Error("WalletConnect is not initialized");
+		if (typeof client === 'undefined') {
+			throw new Error('WalletConnect is not initialized');
 		}
 		// Suggest existing pairings (if any).
 		if (pairings.length) {
@@ -55,107 +46,126 @@ export const App = () => {
 	const [dataStoreList, setDataStoreList] = useState<string[]>([]);
 	const [productList, setProductList] = useState<Media[]>([]);
 
-	const [openFeeInfo, setOpenFeeInfo] = useState(false);
-
-	const [openCommitStatusSuccess, setOpenCommitStatusSuccess] = useState(false);
-	const [openCommitStatusFailed, setOpenCommitStatusFailed] = useState(false);
-	const [openCreatingDataStore, setOpenCreatingDataStore] = useState(false);
-	const [commitTransactionId, setCommitTransactionId] = useState("");
+	const [infoModalOpen, setInfoModalOpen] = useState(false);
+	const [infoModalTitle, setInfoModalTitle] = useState('');
+	const [infoModalDescription, setInfoModalDescription] = useState('');
+	const [infoModalStyle, setInfoModalStyle] = useState<'info' | 'success' | 'error'>('info');
 
 	const [transactionFee, setTransactionFee] = useState<number>(500);
 
 	useEffect(() => {
 		const getIds = async () => {
-			const resp = await requestPermissions({ commands: ['getOwnedStores', 'getDIDInfo', 'getRoot', 'getKeysValues'] } as RequestPermissionsRequest);
-			console.log("requestPermissions response", resp);
+			console.log('getting ids', session, client);
+			const waitOneSecond = async () => {
+				await new Promise((resolve) => {
+					setTimeout(resolve, 1000);
+				});
+			};
+
+			await waitOneSecond();
+			console.log('getting ids2', session, client);
+
+			const resp = await requestPermissions({
+				commands: ['getOwnedStores', 'getDIDInfo', 'getRoot', 'getKeysValues'],
+			} as RequestPermissionsRequest);
+			console.log('requestPermissions response', resp);
 			const response = await getOwnedStores({} as GetOwnedStoresRequest);
 			setDataStoreList(response.storeIds);
 		};
 		if (dataStoreList && dataStoreList.length === 0) {
-			console.log("dataStore list ", dataStoreList);
+			console.log('dataStore list ', dataStoreList);
 			getIds();
 		} else {
-			console.log("dataStore list ", dataStoreList);
+			console.log('dataStore list ', dataStoreList);
 		}
-
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- a
 	}, [dataStoreList, getOwnedStores, requestPermissions, setDataStoreList]);
 
 	useEffect(() => {
 		const getProducts = async (id: string) => {
 			const root: GetRootResponse = await getRoot({ id } as GetRootRequest);
 			const entries: GetKeysValuesResponse = await getKeysValues({ id, rootHash: root.hash } as GetKeysValuesRequest);
-			setProductList(entries.keysValues.map((entry: any) => JSON.parse(Buffer.from(entry.value.split('x')[1], 'hex').toString('utf-8'))));
+			setProductList(
+				entries.keysValues.map((entry: any) => JSON.parse(Buffer.from(entry.value.split('x')[1], 'hex').toString('utf-8')))
+			);
 		};
 		if (dataStoreId !== undefined) {
 			getProducts(dataStoreId);
 		}
-
 	}, [dataStoreId, getKeysValues, getRoot]);
 
 	const updateDataStore = async (media: Media) => {
-
 		const root: GetRootResponse = await getRoot({ id: dataStoreId } as GetRootRequest);
 
-		console.log("root", root);
+		const entries: GetKeysValuesResponse = await getKeysValues({
+			id: dataStoreId,
+			rootHash: root.hash,
+		} as GetKeysValuesRequest);
 
-		const entries: GetKeysValuesResponse = await getKeysValues({ id: dataStoreId, rootHash: root.hash } as GetKeysValuesRequest);
-
-		console.log("entries", entries);
-
-		console.log("media", media);
 		if (entries.keysValues.length === 0) {
 			const changelist = [
 				{
-					"action": "insert",
-					"key": Buffer.from(media.productId).toString('hex'),
-					"value": Buffer.from(JSON.stringify(media)).toString('hex'),
+					action: 'insert',
+					key: Buffer.from(media.productId).toString('hex'),
+					value: Buffer.from(JSON.stringify(media)).toString('hex'),
 				},
 			];
-			console.log("changelist", changelist, media);
 
 			batchUpdate({ id: dataStoreId, changelist, fee: transactionFee } as BatchUpdateRequest).then((response) => {
-				console.log("batch update response", response);
 				if (response && response.success) {
-					setOpenCommitStatusSuccess(true);
-					setCommitTransactionId(response.txId);
-				}
-				else {
-					setOpenCommitStatusFailed(true);
+					setInfoModalOpen(true);
+					setInfoModalTitle('Commit Successful');
+					setInfoModalDescription(
+						`Your update has been committed to your dataStore! Check your wallet, it may take up to a few minutes for the transaction to be confirmed. (Transaction Id: ${response.txId})`
+					);
+					setInfoModalStyle('success');
+				} else {
+					setInfoModalOpen(true);
+					setInfoModalTitle('Commit Failed');
+					setInfoModalDescription(
+						'Your commit failed. Possible reasons are: There are no changes, there is already a pending update to your dataStore, you do not have enough XCH in your wallet, there was an issue connecting to your wallet. Please check your wallet and try again.'
+					);
+					setInfoModalStyle('error');
 				}
 			});
 		} else {
 			entries.keysValues.forEach((entry: any) => {
 				const productId = Buffer.from(entry.key.split('x')[1], 'hex').toString('utf-8');
-				console.log("productId", productId, media.productId);
 				if (productId === media.productId) {
-					console.log("found product", productId);
-
 					const changelist = [
 						{
-							"action": "delete",
-							"key": Buffer.from(media.productId).toString('hex'),
+							action: 'delete',
+							key: Buffer.from(media.productId).toString('hex'),
 						},
 						{
-							"action": "insert",
-							"key": Buffer.from(media.productId).toString('hex'),
-							"value": Buffer.from(JSON.stringify(media)).toString('hex'),
+							action: 'insert',
+							key: Buffer.from(media.productId).toString('hex'),
+							value: Buffer.from(JSON.stringify(media)).toString('hex'),
 						},
 					];
-					console.log("changelist", changelist, media);
 
 					batchUpdate({ id: dataStoreId, changelist, fee: transactionFee } as BatchUpdateRequest).then((response) => {
-						console.log("batch update response", response);
 						if (response && response.success) {
-							setOpenCommitStatusSuccess(true);
-							setCommitTransactionId(response.txId);
-						}
-						else {
-							setOpenCommitStatusFailed(true);
+							setInfoModalOpen(true);
+							setInfoModalTitle('Commit Successful');
+							setInfoModalDescription(
+								`Your update has been committed to your dataStore! Check your wallet, it may take up to a few minutes for the transaction to be confirmed. (Transaction Id: ${response.txId})`
+							);
+							setInfoModalStyle('success');
+						} else {
+							setInfoModalOpen(true);
+							setInfoModalTitle('Commit Failed');
+							setInfoModalDescription(
+								'Your commit failed. Possible reasons are: There are no changes, there is already a pending update to your dataStore, you do not have enough XCH in your wallet, there was an issue connecting to your wallet. Please check your wallet and try again.'
+							);
+							setInfoModalStyle('error');
 						}
 					});
 				} else {
-					console.log("Product found", productId);
-					setOpenCommitStatusFailed(true);
+					setInfoModalOpen(true);
+					setInfoModalTitle('Product not found');
+					setInfoModalDescription('The product you are trying to update does not exist in your dataStore');
+					setInfoModalStyle('error');
 				}
 			});
 		}
@@ -163,117 +173,188 @@ export const App = () => {
 
 	return (
 		<Box>
-			{MainTopBar(session, onConnect, disconnect)}
-			<Paper elevation={1} sx={{ m: 2 }}>
-				<Typography sx={{ p: 2 }} variant="h4">Product Datastores</Typography>
-				<Grid container p={4} id="medialist">
-					<Grid key={"dataStore select"} item xs={8}>
+			<MainTopBar session={session} connectToWallet={onConnect} disconnectFromWallet={disconnect} />
+			<InfoModal open={infoModalOpen} setOpen={setInfoModalOpen} title={infoModalTitle} style={infoModalStyle}>
+				{infoModalDescription}
+			</InfoModal>
+			<Paper elevation={1} sx={{ m: 2, p: 2 }}>
+				<Stack spacing={2}>
+					<Stack direction={'row'} spacing={2} maxWidth={'55rem'}>
 						<Autocomplete
 							id="asset-combo-box"
 							options={dataStoreList}
 							sx={{ width: '100%' }}
 							renderInput={(params) => <TextField {...params} label="DataStore ID" />}
-							filterOptions={(options, state) => options.filter((option) => option.toLowerCase().includes(state.inputValue.toLowerCase()))}
+							filterOptions={(options, state) =>
+								options.filter((option) => option.toLowerCase().includes(state.inputValue.toLowerCase()))
+							}
 							onChange={(event: any, value: string | null) => {
-								console.log(value);
 								if (value) {
 									setDataStoreId(value);
 								}
 							}}
 						/>
-					</Grid>
-					<Grid key={"dataStore create"} item xs={4}>
-						<Button variant="contained" sx={{ p: 2 }} onClick={async () => {
-							const response = await createDataStore({ fee: transactionFee } as CreateDataStoreRequest);
-							console.log("Created Datastore", response);
-							setDataStoreList(dataStoreList.concat([response.id]));
-							setDataStoreId(response.id);
-							setOpenCreatingDataStore(true);
-						}}>
+						<Button
+							variant="contained"
+							onClick={async () => {
+								setInfoModalOpen(true);
+								setInfoModalTitle('Creating DataStore');
+								setInfoModalDescription('Please check your wallet to ensure the transaction is confirmed.');
+								setInfoModalStyle('info');
+								const response = await createDataStore({ fee: transactionFee } as CreateDataStoreRequest);
+								setInfoModalOpen(false);
+								setDataStoreList(dataStoreList.concat([response.id]));
+								setDataStoreId(response.id);
+							}}
+						>
 							Create New DataStore
 						</Button>
-					</Grid>
-					<Grid key={"Transaction Fee"} item xs={12}>
-						<TextField id="Transaction fee tf" variant="filled" type="number" label="Transaction Fee (mojo)" value={transactionFee} onChange={(e) => {
-							const regex = /^[0-9\b]+$/;
-							if (e.target.value === "" || regex.test(e.target.value)) {
-								setTransactionFee(Number(e.target.value));
-							}
-						}
-						} />
-						<IconButton size="small" aria-label="info" onClick={() => { setOpenFeeInfo(true); }}>
+					</Stack>
+					<Stack direction={'row'} spacing={2} maxWidth={'35rem'}>
+						<TextField
+							id="Transaction fee tf"
+							variant="filled"
+							type="number"
+							label="Transaction Fee (mojo)"
+							value={transactionFee}
+							onChange={(e) => {
+								const regex = /^[0-9\b]+$/;
+								if (e.target.value === '' || regex.test(e.target.value)) {
+									setTransactionFee(Number(e.target.value));
+								}
+							}}
+						/>
+						<IconButton
+							size="small"
+							aria-label="info"
+							onClick={() => {
+								setInfoModalOpen(true);
+								setInfoModalTitle('Transaction Fee');
+								setInfoModalDescription(
+									'Creating a Datastore and creating/updating a product require an on-chain transaction. This optional fee can help speed up your transaction if traffic is high. Fee is in mojo (1 XCH = 1,000,000,000,000 mojo)'
+								);
+							}}
+						>
 							<InfoIcon />
 						</IconButton>
-						<Modal
-							open={openFeeInfo}
-							onClose={() => { setOpenFeeInfo(false); }}
-							aria-labelledby="modal-modal-title"
-							aria-describedby="modal-modal-description"
-						>
-							<Box sx={infoModalStyle}>
-								<Typography id="modal-modal-title" variant="h6" component="h2">
-									Transaction Fee
-								</Typography>
-								<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-									Creating a Datastore and creating/updating a product require an on-chain transaction. This optional fee can help speed up your transaction if traffic is high. Fee is in mojo (1 XCH = 1,000,000,000,000 mojo)
-								</Typography>
-							</Box>
-						</Modal>
-					</Grid>
-				</Grid>
+					</Stack>
 
-				{ProductList("Your Products", productList, dataStoreId as string, updateDataStore,)}
-				<Fab sx={{ margin: 0, top: 'auto', right: 20, bottom: 20, left: 'auto', position: 'fixed' }} aria-label="add" color="primary" disabled={dataStoreId === undefined} onClick={async () => {
-					setProductList(productList.concat([{ productId: uuid() } as Media]));
-				}}><AddIcon /></Fab>
+					<ProductList
+						title={'Your Products'}
+						products={productList}
+						dataStoreId={dataStoreId || ''}
+						onExecuteUpdate={updateDataStore}
+					/>
+					<Tooltip title="Create New Product" aria-label="Create New Product">
+						<Fab
+							sx={{ margin: 0, top: 'auto', right: 20, bottom: 20, left: 'auto', position: 'fixed' }}
+							aria-label="add"
+							color="primary"
+							disabled={dataStoreId === undefined}
+							onClick={async () => {
+								if (!slimeConfig) {
+									setInfoModalOpen(true);
+									setInfoModalTitle('No Slime Config Found');
+									setInfoModalDescription('Please set up your profile.');
+									setInfoModalStyle('error');
+									return;
+								}
+								setProductList(
+									productList.concat([
+										{
+											productId: uuid(),
+											publisherDid: slimeConfig.activeIdentity.did,
+											creators: [slimeConfig.activeIdentity.did],
+											mediaType: 'Game',
+											contentRatings: [
+												{
+													name: RatingsOrgs[0].name,
+													fullName: RatingsOrgs[0].fullName,
+													rating: RatingsOrgs[0].ratings[0],
+													containsContent: [],
+													link: '',
+												},
+											],
+											descriptions: [
+												{
+													type: 'Short',
+													markdown: false,
+													description: '',
+													language: {
+														english: 'English',
+														native: 'English',
+													},
+												},
+												{
+													type: 'Medium',
+													markdown: false,
+													description: '',
+													language: {
+														english: 'English',
+														native: 'English',
+													},
+												},
+												{
+													type: 'Long',
+													markdown: false,
+													description: '',
+													language: {
+														english: 'English',
+														native: 'English',
+													},
+												},
+											],
+											credits: [
+												{
+													role: 'Publisher',
+													did: slimeConfig.activeIdentity.did,
+												},
+											],
+											childProducts: [],
+											executables: [
+												{
+													platform: 'Windows',
+													command: '',
+												},
+											],
+											lastUpdated: new Date().getTime(),
+											lastUpdatedContent: new Date().getTime(),
+											nostrEventId: '',
+											password: 'string',
+											images: [],
+											videos: [],
+											donationAddress: '',
+											parentProductId: '',
+											releaseStatus: '',
+											supportContact: slimeConfig.activeIdentity.did,
+											tags: [],
+											titles: [
+												{
+													title: '',
+													language: {
+														english: 'English',
+														native: 'English',
+													},
+												},
+											],
+											torrents: [
+												{
+													platform: 'Windows',
+													size: 0,
+													torrent: '',
+												},
+											],
+											version: '',
+										} as Media,
+									])
+								);
+							}}
+						>
+							<AddIcon />
+						</Fab>
+					</Tooltip>
+				</Stack>
 			</Paper>
-			<Modal
-				open={openCommitStatusSuccess}
-				onClose={() => { setOpenCommitStatusSuccess(false); }}
-				aria-labelledby="modal-modal-title"
-				aria-describedby="modal-modal-description"
-			>
-				<Box sx={successModalStyle}>
-					<Typography id="modal-modal-title" variant="h6" component="h2">
-						Commit Successful
-					</Typography>
-					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-						Your update has been committed to your dataStore! Check your wallet, it may take up to a few minutes for the transaction to be confirmed.
-						(Transaction Id: {commitTransactionId})
-					</Typography>
-				</Box>
-			</Modal>
-			<Modal
-				open={openCommitStatusFailed}
-				onClose={() => { setOpenCommitStatusFailed(false); }}
-				aria-labelledby="modal-modal-title"
-				aria-describedby="modal-modal-description"
-			>
-				<Box sx={errorModalStyle}>
-					<Typography id="modal-modal-title" variant="h6" component="h2">
-						Commit Failed
-					</Typography>
-					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-						Your commit failed. Possible reasons are: <ul><li>There are no changes</li><li>There is already a pending update to your dataStore</li><li>You do not have enough XCH in your wallet</li><li>There was an issue connecting to your wallet</li></ul> Please check your wallet and try again.
-					</Typography>
-				</Box>
-			</Modal>
-			<Modal
-				open={openCreatingDataStore}
-				onClose={() => { setOpenCreatingDataStore(false); }}
-				aria-labelledby="modal-modal-title"
-				aria-describedby="modal-modal-description"
-			>
-				<Box sx={successModalStyle}>
-					<Typography id="modal-modal-title" variant="h6" component="h2">
-						Creating DataStore
-					</Typography>
-					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-						Please check your wallet to ensure the transaction is confirmed.
-					</Typography>
-				</Box>
-			</Modal>
 		</Box>
 	);
 };
-
