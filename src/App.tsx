@@ -84,6 +84,7 @@ export const App = () => {
 	useEffect(() => {
 		const getProducts = async (id: string) => {
 			const root: GetRootResponse = await getRoot({ id } as GetRootRequest);
+			console.log('root', root, id);
 			const entries: GetKeysValuesResponse = await getKeysValues({ id, rootHash: root.hash } as GetKeysValuesRequest);
 			setProductList(
 				entries.keysValues.map((entry: any) => JSON.parse(Buffer.from(entry.value.split('x')[1], 'hex').toString('utf-8')))
@@ -311,12 +312,6 @@ export const App = () => {
 												},
 											],
 											childProducts: [],
-											executables: [
-												{
-													platform: 'Windows',
-													command: '',
-												},
-											],
 											lastUpdated: new Date().getTime(),
 											lastUpdatedContent: new Date().getTime(),
 											nostrEventId: '',
@@ -337,14 +332,7 @@ export const App = () => {
 													},
 												},
 											],
-											torrents: [
-												{
-													platform: 'Windows',
-													size: 0,
-													torrent: '',
-												},
-											],
-											version: '',
+											files: [],
 										} as Media,
 									])
 								);

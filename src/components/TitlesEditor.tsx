@@ -32,7 +32,7 @@ export const TitleEditor = (props: TitleEditorProps) => {
 
 	return (
 		<Grid container alignItems={'center'} spacing={1}>
-			<Grid item xs={8}>
+			<Grid item xs={12} sm={12} md={8}>
 				<TextField
 					sx={{ width: '100%' }}
 					label="Title"
@@ -43,7 +43,7 @@ export const TitleEditor = (props: TitleEditorProps) => {
 					}}
 				/>
 			</Grid>
-			<Grid item xs={3}>
+			<Grid item xs={10} sm={10} md={3}>
 				<Autocomplete
 					options={Languages.concat(Languages)}
 					value={languageValue}
@@ -67,7 +67,7 @@ export const TitleEditor = (props: TitleEditorProps) => {
 					}}
 				/>
 			</Grid>
-			<Grid item xs={1}>
+			<Grid item xs={2} sm={2} md={1}>
 				<IconButton
 					size="large"
 					onClick={() => {

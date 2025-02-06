@@ -75,7 +75,7 @@ const roles = [
 		group: 'Design',
 	},
 	{
-		name: 'Game Designer”',
+		name: 'Game Designer',
 		group: 'Design',
 	},
 	{
@@ -402,7 +402,7 @@ const roles = [
 		group: 'Public Relations',
 	},
 	{
-		name: 'Corporate Communications”',
+		name: 'Corporate Communications',
 		group: 'Public Relations',
 	},
 	{

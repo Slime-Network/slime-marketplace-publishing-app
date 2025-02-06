@@ -1,4 +1,4 @@
-import { Grid, Typography, Paper, Stack } from '@mui/material';
+import { Typography, Stack, Box } from '@mui/material';
 import React from 'react';
 
 import { Media } from '../slime-shared/types/slime/Media';
@@ -12,27 +12,25 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ title, products, dataStoreId, onExecuteUpdate }) => (
-	<Paper elevation={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+	<Box sx={{ display: 'flex', justifyContent: 'center' }}>
 		{products.length > 0 ? (
-			<Paper elevation={1} sx={{ maxWidth: '100rem' }}>
+			<Box sx={{ maxWidth: '100rem' }}>
 				<Stack direction="column" spacing={2}>
 					<Typography variant="h4">
 						{title}: {dataStoreId.slice(0, 4)}...{dataStoreId.slice(dataStoreId.length - 4, dataStoreId.length)}
 					</Typography>
-					<Grid container spacing={4} id="productlist" justifyContent={'center'}>
+					<Stack justifyContent={'center'}>
 						{products &&
 							products.map((result: Media) => (
-								<Grid key={result.productId} item xs={12}>
-									<PublishingCard media={result} onExecuteUpdate={onExecuteUpdate} dataStoreId={dataStoreId} />
-								</Grid>
+								<PublishingCard media={result} onExecuteUpdate={onExecuteUpdate} dataStoreId={dataStoreId} />
 							))}
-					</Grid>
+					</Stack>
 				</Stack>
-			</Paper>
+			</Box>
 		) : (
 			<></>
 		)}
-	</Paper>
+	</Box>
 );
 
 export default ProductList;

@@ -1,5 +1,5 @@
 import { Info, Add, Delete } from '@mui/icons-material';
-import { Autocomplete, Box, Grid, IconButton, Paper, Stack, Switch, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, Grid, IconButton, Paper, Stack, TextField, Typography } from '@mui/material';
 import React from 'react';
 
 import { InfoModal } from '../slime-shared/components/InfoModal';
@@ -39,10 +39,10 @@ export const DescriptionEditor = (props: DescriptionEditorProps) => {
 
 	return (
 		<Grid container alignItems={'center'} justifyContent={'space-between'} spacing={1}>
-			<Grid item xs={7}>
+			<Grid item xs={12} sm={12} md={12} lg={7}>
 				<TextField
 					sx={{ width: '100%' }}
-					label="Description"
+					label={markdownValue ? 'Markdown' : 'Plain Text'}
 					variant="filled"
 					multiline={typeValue !== 'Short'}
 					maxRows={typeValue === 'Short' ? 1 : typeValue === 'Medium' ? 3 : 10}
@@ -53,18 +53,7 @@ export const DescriptionEditor = (props: DescriptionEditorProps) => {
 				/>
 			</Grid>
 
-			<Grid item xs={1}>
-				<Stack>
-					Markdown
-					<Switch
-						checked={markdownValue}
-						onChange={(event) => {
-							setMarkdownValue(event.target.checked);
-						}}
-					/>
-				</Stack>
-			</Grid>
-			<Grid item xs={1}>
+			<Grid item xs={5} sm={5} md={5} lg={1.5}>
 				<Autocomplete
 					defaultValue={'Medium'}
 					options={DescriptionTypes}
@@ -73,11 +62,17 @@ export const DescriptionEditor = (props: DescriptionEditorProps) => {
 					disableClearable
 					renderInput={(params) => <TextField {...params} label="Type" />}
 					onChange={(event: any) => {
+						if (event.target.innerText.toLowerCase() === 'long') {
+							setMarkdownValue(true);
+						} else {
+							setMarkdownValue(false);
+						}
+						console.log('Change Descripion type', event.target.innerText);
 						setTypeValue(event.target.innerText);
 					}}
 				/>
 			</Grid>
-			<Grid item xs={2}>
+			<Grid item xs={5} sm={6} md={6} lg={2.5}>
 				<Autocomplete
 					options={Languages.concat(Languages)}
 					value={languageValue}
@@ -105,7 +100,7 @@ export const DescriptionEditor = (props: DescriptionEditorProps) => {
 					}}
 				/>
 			</Grid>
-			<Grid item xs={0.5}>
+			<Grid item xs={1} sm={1} md={1} lg={0.5}>
 				<IconButton
 					size="large"
 					onClick={() => {

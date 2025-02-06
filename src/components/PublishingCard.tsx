@@ -18,18 +18,18 @@ import * as React from 'react';
 import { AddMarketplaceModal } from '../slime-shared/components/AddMarketplaceModal';
 import GameCard from '../slime-shared/components/GameCard';
 import { InfoModal } from '../slime-shared/components/InfoModal';
-import { DefaultExecutables, DevelopmentStatuses, MediaTypes } from '../slime-shared/constants';
+import { DevelopmentStatuses, MediaTypes } from '../slime-shared/constants';
 import { useMarketplaceApi } from '../slime-shared/contexts/MarketplaceApiContext';
 import { useSlimeApi } from '../slime-shared/contexts/SlimeApiContext';
 import { RequestListingOrUpdateRequest, Marketplace } from '../slime-shared/types/slime/MarketplaceApiTypes';
-import type { Media, MediaExecutable, MediaTag, MediaTorrent, MediaUrlSource } from '../slime-shared/types/slime/Media';
+import type { Media, MediaTag } from '../slime-shared/types/slime/Media';
 import { SignNostrMessageRequest } from '../slime-shared/types/slime/SlimeRpcTypes';
 import { getEventHash, NostrEvent } from '../slime-shared/utils/nostr';
 import { ContentRatingsEditor } from './ContentRatingEditor';
 import { CreditsEditor } from './CreditsEditor';
 import { DescriptionsEditor } from './DescriptionsEditor';
-import { EditTorrents } from './EditTorrent';
 import { ImagesEditor } from './ImagesEditor';
+import { MediaFilesEditor } from './MediaFilesEditor';
 import MintingPage from './MintingPage';
 import { TagsEditor } from './TagsEditor';
 import { TitlesEditor } from './TitlesEditor';
@@ -51,13 +51,9 @@ export default function PublishingCard(props: PublishingCardProps) {
 
 	const [mediaType, setMediaType] = React.useState<string>(media.mediaType);
 	// const [childProducts, setChildProducts] = React.useState<string[]>(media.childProducts);
-	const [executables, setExecutables] = React.useState<MediaExecutable[]>(media.executables);
 	const [lastUpdated, setLastUpdated] = React.useState<number>(media.lastUpdated);
 	const [lastUpdatedContent, setLastUpdatedContent] = React.useState<number>(media.lastUpdatedContent);
 	const [nostrEventId, setNostrEventId] = React.useState<string>(media.nostrEventId);
-	const [password, setPassword] = React.useState<string>(media.password);
-	const [images, setImages] = React.useState<MediaUrlSource[]>(media.images);
-	const [videos, setVideos] = React.useState<MediaUrlSource[]>(media.videos);
 	const [donationAddress, setDonationAddress] = React.useState<string>(media.donationAddress);
 	// const [parentProductId, setParentProductId] = React.useState<string>(media.parentProductId);
 	const [productId] = React.useState<string>(media.productId);
@@ -65,20 +61,14 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const [releaseStatus, setReleaseStatus] = React.useState<string>(media.releaseStatus);
 	const [supportContact, setSupportContact] = React.useState<string>(media.supportContact);
 	const [tags, setTags] = React.useState<MediaTag[]>(media.tags);
-	const [torrents, setTorrents] = React.useState<MediaTorrent[]>(media.torrents);
-	const [version, setVersion] = React.useState<string>(media.version);
 	const [publicStatus, setPublicStatus] = React.useState<boolean>(true);
 
 	React.useEffect(() => {
 		media.mediaType = mediaType;
 		// media.childProducts = childProducts;
-		media.executables = executables;
 		media.lastUpdated = lastUpdated;
 		media.lastUpdatedContent = lastUpdatedContent;
 		media.nostrEventId = nostrEventId;
-		media.password = password;
-		media.images = images;
-		media.videos = videos;
 		media.donationAddress = donationAddress;
 		// media.parentProductId = parentProductId;
 		media.productId = productId;
@@ -86,19 +76,13 @@ export default function PublishingCard(props: PublishingCardProps) {
 		media.releaseStatus = releaseStatus;
 		media.supportContact = supportContact;
 		media.tags = tags;
-		media.torrents = torrents;
-		media.version = version;
 	}, [
 		media,
 		mediaType,
 		// childProducts,
-		executables,
 		lastUpdated,
 		lastUpdatedContent,
 		nostrEventId,
-		password,
-		images,
-		videos,
 		donationAddress,
 		// parentProductId,
 		productId,
@@ -106,8 +90,6 @@ export default function PublishingCard(props: PublishingCardProps) {
 		releaseStatus,
 		supportContact,
 		tags,
-		torrents,
-		version,
 	]);
 
 	const createNostrThread = async () => {
@@ -182,31 +164,11 @@ export default function PublishingCard(props: PublishingCardProps) {
 
 	const { requestListingOrUpdate } = useMarketplaceApi();
 
-	const onFilesUpdate = async () => {
-		const randPassword = new Array(10)
-			.fill('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
-			.map((x) =>
-				(function (chars) {
-					const umax = 2 ** 32;
-					const r = new Uint32Array(1);
-					const max = umax - (umax % chars.length);
-					do {
-						crypto.getRandomValues(r);
-					} while (r[0] > max);
-					return chars[r[0] % chars.length];
-				})(x)
-			)
-			.join('');
-		setPassword(randPassword);
-		media.password = randPassword;
-		// const resp = await generateTorrents({ media, sourcePaths } as GenerateTorrentsRequest);
-	};
-
 	const onRequestListingOrUpdate = async () => {
-		console.log('Requesting Listing/Update', selectedMarketplaces, media);
 		setLastUpdated(Math.floor(Date.now() / 1000));
 		setLastUpdatedContent(Math.floor(Date.now() / 1000)); // move to torrents
 		selectedMarketplaces.map(async (marketplace: Marketplace) => {
+			console.log('Requesting Listing/Update', { ...media }, marketplace);
 			const result = await requestListingOrUpdate({
 				url: marketplace.url,
 				media,
@@ -246,7 +208,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 					</IconButton>
 				</Grid>
 
-				<Grid key={`${productId}productId`} item xs={12} md={6}>
+				<Grid key={`${productId}productId`} item xs={12} sm={4.5}>
 					<TextField
 						id="productIdTextField"
 						sx={{ width: '100%' }}
@@ -270,7 +232,30 @@ export default function PublishingCard(props: PublishingCardProps) {
 						}}
 					/>
 				</Grid>
-				<Grid key={`${productId}mediaType`} item xs={12} md={6}>
+				<Grid key={`${productId}nostrId`} item xs={12} sm={4.5}>
+					<TextField
+						sx={{ width: '100%' }}
+						label="Nostr Id"
+						disabled={true}
+						variant="filled"
+						value={nostrEventId}
+						inputProps={{
+							endAdornment: (
+								<IconButton
+									size="small"
+									onClick={() => {
+										setOpenInfoModal(true);
+										setInfoTitle('Nostr Id');
+										setInfoDescription('The unique identifier for your product. This cannot be changed.');
+									}}
+								>
+									<InfoIcon />
+								</IconButton>
+							),
+						}}
+					/>
+				</Grid>
+				<Grid key={`${productId}mediaType`} item xs={12} sm={3}>
 					<Autocomplete
 						id={`${productId}mediaType-combo-box`}
 						defaultValue={mediaType}
@@ -292,11 +277,11 @@ export default function PublishingCard(props: PublishingCardProps) {
 				</Grid>
 
 				<Grid key={`${productId}images`} item xs={12}>
-					<ImagesEditor media={mediaLocal} setImages={setImages} />
+					<ImagesEditor media={mediaLocal} setMedia={setMediaLocal} />
 				</Grid>
 
 				<Grid key={`${productId}videos`} item xs={12}>
-					<VideosEditor media={mediaLocal} setVideos={setVideos} />
+					<VideosEditor media={mediaLocal} setMedia={setMediaLocal} />
 				</Grid>
 
 				<Grid key={`${productId}contentRating`} item xs={12}>
@@ -370,35 +355,6 @@ export default function PublishingCard(props: PublishingCardProps) {
 						}}
 					/>
 				</Grid>
-				<Grid key={`${productId}version`} item xs={12} md={6}>
-					<TextField
-						id="versionTextField"
-						sx={{ width: '100%' }}
-						label="Version"
-						variant="filled"
-						value={version}
-						onChange={(event: any) => {
-							setVersion(event.target.value);
-						}}
-						inputProps={{
-							inputMode: 'numeric',
-							endAdornment: (
-								<IconButton
-									size="small"
-									onClick={() => {
-										setOpenInfoModal(true);
-										setInfoTitle('Version');
-										setInfoDescription(
-											'Current version number. Ideally using Semantic Versioning. But other numeric formats should work.'
-										);
-									}}
-								>
-									<InfoIcon />
-								</IconButton>
-							),
-						}}
-					/>
-				</Grid>
 				<Grid key={`${productId}status`} item xs={12} md={6}>
 					<Autocomplete
 						id={`${productId}status-combo-box`}
@@ -412,60 +368,10 @@ export default function PublishingCard(props: PublishingCardProps) {
 					/>
 				</Grid>
 
-				<Grid key={`${productId}Torrents`} item xs={12}>
-					<EditTorrents media={media} setTorrents={setTorrents} />
+				<Grid key={`${productId}files`} item xs={12}>
+					<MediaFilesEditor media={mediaLocal} setMedia={setMediaLocal} />
 				</Grid>
 
-				<Grid key={`${productId}Update Files`} item xs={11}>
-					<Button sx={{ width: '100%' }} variant="contained" onClick={onFilesUpdate}>
-						Update Product Torrent Files
-					</Button>
-				</Grid>
-				<Grid key={`${productId}Update Files desc`} item xs={1}>
-					<IconButton
-						size="small"
-						onClick={() => {
-							setOpenInfoModal(true);
-							setInfoTitle('Update Torrent Files');
-							setInfoDescription(
-								"This button generates your torrent files to be included in an update. Don't press it unless you intend push updated project files to everyone who owns your product."
-							);
-						}}
-					>
-						<InfoIcon />
-					</IconButton>
-				</Grid>
-				<Grid key={`${productId}executables`} item xs={12}>
-					<TextField
-						id="executablesTextField"
-						sx={{ width: '100%' }}
-						multiline
-						maxRows={6}
-						label="Executables"
-						variant="filled"
-						value={executables}
-						defaultValue={DefaultExecutables}
-						onChange={(event: any) => {
-							setExecutables(event.target.value);
-						}}
-						inputProps={{
-							endAdornment: (
-								<IconButton
-									size="small"
-									onClick={() => {
-										setOpenInfoModal(true);
-										setInfoTitle('Executables');
-										setInfoDescription(
-											"Specifies the relative path to your executables from your project root. If you do not support a given operating system, leave it empty, don't delete it."
-										);
-									}}
-								>
-									<InfoIcon />
-								</IconButton>
-							),
-						}}
-					/>
-				</Grid>
 				<Grid key={`${productId}Update`} item xs={5}>
 					<Button
 						sx={{ width: '100%' }}

@@ -12,6 +12,7 @@ import {
 	Modal,
 	Paper,
 	Slider,
+	Stack,
 	TextField,
 	Typography,
 } from '@mui/material';
@@ -1122,66 +1123,72 @@ export const ContentRatingsEditor = (props: ContentRatingProps) => {
 			<InfoModal open={openInfoModal} setOpen={setOpenInfoModal} title={infoTitle} style="info">
 				{infoDescription}
 			</InfoModal>
-			<Accordion>
-				<AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ alignItems: 'center' }}>
-					<Typography variant="h5">Slime Network Self-Rating Questionnaire</Typography>
-					<IconButton
-						size="large"
-						onClick={() => {
-							setOpenInfoModal(true);
-							setInfoTitle('Content Ratings');
-							setInfoDescription('The content ratings of the media');
-						}}
-					>
-						<InfoIcon />
-					</IconButton>
-				</AccordionSummary>
-				<AccordionDetails>
-					<Grid container>
-						{media.contentRatings &&
-							media.contentRatings.map((rating, index) => (
-								<Grid>
-									{rating && rating.name === 'Slime' ? (
-										<Grid item xs={12}>
-											<SlimeRatingEditor
-												rating={rating}
-												setRating={(newRating: MediaContentRating | undefined) => {
-													if (!newRating) {
-														mediaLocal.contentRatings = mediaLocal.contentRatings.filter((_, i) => i !== index);
+			<Stack spacing={2}>
+				<Accordion>
+					<AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ alignItems: 'center' }}>
+						<Stack direction="row" spacing={2} alignItems={'center'}>
+							<Typography variant="h5">Slime Network Self-Rating Questionnaire</Typography>
+							<IconButton
+								size="large"
+								onClick={() => {
+									setOpenInfoModal(true);
+									setInfoTitle('Content Ratings');
+									setInfoDescription('The content ratings of the media');
+								}}
+							>
+								<InfoIcon />
+							</IconButton>
+						</Stack>
+					</AccordionSummary>
+					<AccordionDetails>
+						<Grid container>
+							{media.contentRatings &&
+								media.contentRatings.map((rating, index) => (
+									<Grid>
+										{rating && rating.name === 'Slime' ? (
+											<Grid item xs={12}>
+												<SlimeRatingEditor
+													rating={rating}
+													setRating={(newRating: MediaContentRating | undefined) => {
+														if (!newRating) {
+															mediaLocal.contentRatings = mediaLocal.contentRatings.filter((_, i) => i !== index);
+															setMediaLocal({ ...mediaLocal });
+															return;
+														}
+														mediaLocal.contentRatings[index] = newRating;
 														setMediaLocal({ ...mediaLocal });
-														return;
-													}
-													mediaLocal.contentRatings[index] = newRating;
-													setMediaLocal({ ...mediaLocal });
-												}}
-											/>
-										</Grid>
-									) : (
-										<Grid item xs={12}>
-											{JSON.stringify(rating)}
-										</Grid>
-									)}
-								</Grid>
-							))}
-					</Grid>
-				</AccordionDetails>
-			</Accordion>
-			<Accordion>
-				<AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ alignItems: 'center' }}>
-					<Typography variant="h5">Other Ratings</Typography>
-					<IconButton
-						size="large"
-						onClick={() => {
-							setOpenInfoModal(true);
-							setInfoTitle('Content Ratings');
-							setInfoDescription('The content ratings of the media');
-						}}
-					>
-						<InfoIcon />
-					</IconButton>
-				</AccordionSummary>
-				<AccordionDetails>do later</AccordionDetails>
-			</Accordion>
+													}}
+												/>
+											</Grid>
+										) : (
+											<Grid item xs={12}>
+												{JSON.stringify(rating)}
+											</Grid>
+										)}
+									</Grid>
+								))}
+						</Grid>
+					</AccordionDetails>
+				</Accordion>
+				<Accordion>
+					<AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ alignItems: 'center' }}>
+						<Stack direction="row" spacing={2} alignItems={'center'}>
+							<Typography variant="h5">Other Ratings</Typography>
+							<IconButton
+								size="large"
+								onClick={() => {
+									setOpenInfoModal(true);
+									setInfoTitle('Content Ratings');
+									setInfoDescription('The content ratings of the media');
+								}}
+							>
+								<InfoIcon />
+							</IconButton>
+						</Stack>
+					</AccordionSummary>
+					<AccordionDetails>do later</AccordionDetails>
+				</Accordion>
+			</Stack>
 		</Paper>
 	);
 };
