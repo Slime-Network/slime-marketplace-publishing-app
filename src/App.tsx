@@ -264,8 +264,8 @@ export const App = () => {
 									productList.concat([
 										{
 											productId: uuid(),
-											publisherDid: slimeConfig.activeIdentity.did,
-											creators: [slimeConfig.activeIdentity.did],
+											publisherDid: slimeConfig.did,
+											creators: [slimeConfig.did],
 											mediaType: 'Game',
 											contentRatings: [
 												{
@@ -308,7 +308,7 @@ export const App = () => {
 											credits: [
 												{
 													role: 'Publisher',
-													did: slimeConfig.activeIdentity.did,
+													did: slimeConfig.did,
 												},
 											],
 											childProducts: [],
@@ -321,7 +321,7 @@ export const App = () => {
 											donationAddress: '',
 											parentProductId: '',
 											releaseStatus: '',
-											supportContact: slimeConfig.activeIdentity.did,
+											supportContact: slimeConfig.did,
 											tags: [],
 											titles: [
 												{

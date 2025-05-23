@@ -43,7 +43,7 @@ export type PublishingCardProps = {
 
 export default function PublishingCard(props: PublishingCardProps) {
 	const { media, onExecuteUpdate } = props;
-	const { slimeConfig, signNostrMessage } = useSlimeApi();
+	const { slimeConfig, marketplaces, nostrRelays, signNostrMessage } = useSlimeApi();
 
 	const [showAdult, setShowAdult] = React.useState(false);
 
@@ -95,18 +95,23 @@ export default function PublishingCard(props: PublishingCardProps) {
 	const createNostrThread = async () => {
 		const nostrPool = new SimplePool();
 
-		if (!slimeConfig) {
+		if (!nostrRelays || nostrRelays.length === 0) {
+			alert('No Nostr relays found. Add one is your settings.');
+			return;
+		}
+
+		if (!slimeConfig?.activeProof?.pubkey) {
 			alert('No public key found. Please set up your profile.');
 			return;
 		}
 
 		console.log(
 			'start createNostrThread relays',
-			slimeConfig.nostrRelays.map((relay) => relay.url)
+			nostrRelays.map((relay) => relay.url)
 		);
 
 		const foundEvent = await nostrPool.get(
-			slimeConfig.nostrRelays.map((relay) => relay.url),
+			nostrRelays.map((relay) => relay.url),
 			{ ids: [media.nostrEventId] }
 		);
 		console.log('query for event', foundEvent);
@@ -115,7 +120,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 		if (!media.nostrEventId || foundEvent) {
 			console.log('Creating Nostr Thread');
 
-			const pk = slimeConfig.activeIdentity.currentNostrPublicKey;
+			const pk = slimeConfig.activeProof.pubkey;
 
 			if (!pk) {
 				console.log('No public key found');
@@ -130,7 +135,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 			const event: NostrEvent = {
 				content: media.productId,
 				kind: 1,
-				tags: [['i', `chia:${media.publisherDid}`, slimeConfig.activeIdentity.proof]],
+				tags: [['i', `chia:${media.publisherDid}`, slimeConfig.activeProof.proof]],
 				created_at: createdAt,
 				pubkey: pk,
 				id: '',
@@ -146,7 +151,7 @@ export default function PublishingCard(props: PublishingCardProps) {
 
 			await Promise.any(
 				nostrPool.publish(
-					slimeConfig.nostrRelays.map((relay) => relay.url),
+					nostrRelays.map((relay) => relay.url),
 					event
 				)
 			);
@@ -154,13 +159,8 @@ export default function PublishingCard(props: PublishingCardProps) {
 		}
 	};
 
-	const [marketplaces] = React.useState<Marketplace[]>(slimeConfig?.marketplaces ?? []);
 	const [selectedMarketplaces, setSelectedMarketplaces] = React.useState<Marketplace[]>([]);
 	const [addMarketplaceModalOpen, setAddMarketplaceModalOpen] = React.useState<boolean>(false);
-
-	React.useEffect(() => {
-		setSelectedMarketplaces(marketplaces);
-	}, [marketplaces]);
 
 	const { requestListingOrUpdate } = useMarketplaceApi();
 
@@ -431,10 +431,10 @@ export default function PublishingCard(props: PublishingCardProps) {
 					<Autocomplete
 						multiple
 						id={`${productId}marketplaces-outlined`}
-						options={marketplaces.map((marketplace) => marketplace.displayName)}
+						options={marketplaces?.map((marketplace) => marketplace.displayName) || []}
 						onChange={(event: any, values: string[]) => {
 							const selected: Marketplace[] = [];
-							marketplaces.forEach((marketplace) => {
+							marketplaces?.forEach((marketplace) => {
 								if (values.includes(marketplace.displayName)) selected.push(marketplace);
 							});
 
@@ -505,17 +505,8 @@ export default function PublishingCard(props: PublishingCardProps) {
 				<Grid key={`${productId} Divider`} item xs={12}>
 					<Divider />
 				</Grid>
-				<Grid key={`${productId} Divideeer`} item xs={12}>
-					<Button
-						onClick={() => {
-							console.log('aoeuaoeu', mediaLocal);
-						}}
-					>
-						aoeuao
-					</Button>
-				</Grid>
 			</Grid>
-			<MintingPage open={openMintPage} setOpen={setOpenMintPage} marketplaces={marketplaces} {...props} />
+			<MintingPage open={openMintPage} setOpen={setOpenMintPage} marketplaces={marketplaces || []} {...props} />
 			<AddMarketplaceModal open={addMarketplaceModalOpen} setOpen={setAddMarketplaceModalOpen} />
 		</Paper>
 	);

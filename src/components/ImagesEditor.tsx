@@ -79,7 +79,7 @@ export const NewImageModal = (props: NewImageModalProps) => {
 
 	const { uploadFile } = useMarketplaceApi();
 
-	const { slimeConfig } = useSlimeApi();
+	const { marketplaces } = useSlimeApi();
 
 	return (
 		<Modal open={open} onClose={() => setOpen(false)}>
@@ -105,8 +105,8 @@ export const NewImageModal = (props: NewImageModalProps) => {
 							disabled={image == null}
 							startIcon={<CloudUpload />}
 							onClick={async () => {
-								if (image && slimeConfig) {
-									slimeConfig.marketplaces.forEach(async (marketplace) => {
+								if (image && marketplaces) {
+									marketplaces.forEach(async (marketplace) => {
 										const res = await uploadFile({ file: image, url: marketplace.url } as UploadFileRequest);
 										if (res.id) {
 											setNewImage({ ...newImage, url: `${marketplace.url}/public/${res.id}` });
@@ -114,7 +114,7 @@ export const NewImageModal = (props: NewImageModalProps) => {
 											alert(`Unknown Error during upload to ${marketplace.url}\n${res.message}`);
 										}
 									});
-									if (slimeConfig.marketplaces.length === 0) {
+									if (marketplaces.length === 0) {
 										alert('No Marketplaces Available Add Marketplace in Settings.');
 									}
 								}

@@ -9,8 +9,8 @@ import ReactDOM from 'react-dom/client';
 
 import { App } from './App';
 import { CHAIN_ID, PROJECT_ID, RELAY_URL } from './slime-shared/constants/env';
-import { SlimeApiContextProvider } from './slime-shared/contexts/SlimeApiContext';
 import { MarketplaceApiContextProvider } from './slime-shared/contexts/MarketplaceApiContext';
+import { SlimeApiContextProvider } from './slime-shared/contexts/SlimeApiContext';
 import { WalletConnectProvider } from './slime-shared/contexts/WalletConnectContext';
 import { WalletConnectRpcProvider } from './slime-shared/contexts/WalletConnectRpcContext';
 
@@ -27,13 +27,24 @@ const theme = extendTheme({
 				},
 			},
 		},
+		light: {
+			// palette for dark mode
+			palette: {
+				primary: {
+					main: green[300],
+				},
+				secondary: {
+					main: green[200],
+				},
+			},
+		},
 	},
 });
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
 	<React.StrictMode>
-		<CssVarsProvider theme={theme}>
+		<CssVarsProvider theme={theme} defaultMode="dark">
 			<WalletConnectProvider projectId={PROJECT_ID} relayUrl={RELAY_URL} chainId={CHAIN_ID}>
 				<WalletConnectRpcProvider>
 					<MarketplaceApiContextProvider>
